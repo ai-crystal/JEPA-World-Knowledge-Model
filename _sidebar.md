@@ -33,4 +33,3 @@
   - [附录 C　参考文献](book/appendix/appC.md)
 
 - [后记](book/front/afterword.md)
-- [下载 PDF](output/world-map-jepa.pdf)
