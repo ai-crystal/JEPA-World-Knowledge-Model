@@ -1,0 +1,25 @@
+{
+  "front": ["front/titlepage.md", "front/copyright.md", "front/preface.md"],
+  "parts": [
+    {
+      "no": "第一篇",
+      "title": "第一篇  语言模型的边界",
+      "page": "front/part1.md",
+      "chapters": ["ch01.md", "ch02.md", "ch03.md"]
+    },
+    {
+      "no": "第二篇",
+      "title": "第二篇  联合嵌入预测",
+      "page": "front/part2.md",
+      "chapters": ["ch04.md", "ch05.md", "ch06.md"]
+    },
+    {
+      "no": "第三篇",
+      "title": "第三篇  世界与地图",
+      "page": "front/part3.md",
+      "chapters": ["ch07.md", "ch08.md", "ch09.md"]
+    }
+  ],
+  "appendices": ["appA.md"],
+  "back": ["front/afterword.md"]
+}

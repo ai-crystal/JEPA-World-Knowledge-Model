@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-  <meta name="description" content="《同一张世界的地图》——从语言模型到 JEPA 的世界模型。在线免费阅读，可下载 PDF。">
-  <title>同一张世界的地图 · JEPA 与世界模型</title>
+  <meta name="description" content="《同一张世界的地图》三部曲：从语言模型到 JEPA，入门篇、进阶篇、专业篇。在线免费阅读，可下载 PDF。">
+  <title>同一张世界的地图 · JEPA 三部曲</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/themes/vue.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
@@ -18,7 +18,7 @@
     .markdown-section h2 { font-size: 1.3rem; margin: 1.8em 0 .6em; padding-left: .5em;
                            border-left: 3px solid var(--theme-color); }
     .markdown-section h3 { font-size: 1.06rem; margin: 1.4em 0 .5em; }
-    .markdown-section p, .markdown-section li { line-height: 1.85; }
+    .markdown-section p, .markdown-section li { line-height: 1.9; }
     .markdown-section blockquote { border-left: 3px solid #9fbdd2; background: #f4f8fb;
                                    padding: .6em 1em; color: #3f4c59; }
     .markdown-section img { max-width: 100%; }
@@ -30,7 +30,7 @@
 
     section.cover {
       background-color: #060b12 !important;
-      background-image: url(book/images/cover/cover-art.jpg) !important;
+      background-image: url(books/basics/images/cover/cover-art.jpg) !important;
       background-size: cover !important;
       background-position: 40% 48% !important;
       background-repeat: no-repeat !important;
@@ -60,7 +60,6 @@
   <div id="app">正在加载…</div>
 
   <script>
-    // 静态文件（PDF 等）不走 hash 路由，避免请求 xxx.pdf.md 而 404
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[href^="#/"]');
       if (!a) return;
@@ -78,11 +77,16 @@
       subMaxLevel: 2,
       coverpage: true,
       onlyCover: false,
-      alias: { '.*/_sidebar.md': '/_sidebar.md' },
+      alias: {
+        '.*books/basics/.*_sidebar\.md': '/books/basics/_sidebar.md',
+        '.*books/practice/.*_sidebar\.md': '/books/practice/_sidebar.md',
+        '.*books/theory/.*_sidebar\.md': '/books/theory/_sidebar.md',
+        '.*_sidebar\.md': '/_sidebar.md'
+      },
       auto2top: true,
       maxLevel: 3,
       search: {
-        placeholder: '搜索本书…',
+        placeholder: '搜索全书…',
         noData: '没有找到结果',
         depth: 3
       },
@@ -100,11 +104,13 @@
       mermaid: { theme: 'default' },
       plugins: [
         function (hook, vm) {
-          // 正文图片写 ../images/NN/xxx.png（GitHub 直接看 md 也能显示），
-          // 在 docsify 里改写成站点根下的绝对路径。
           hook.afterEach(function (html) {
+            // 章节里的图片写 ../images/NN/x.png（GitHub 也能直接看），
+            // 在 docsify 里按当前册改写成仓库绝对路径。
             var base = new URL('.', location.href).pathname;
-            html = html.replace(/(src=")\.\.\/images\//g, '$1' + base + 'book/images/');
+            var m = location.hash.match(/^#\/(books\/[^\/]+)\//);
+            var prefix = m ? m[1] + '/images/' : 'books/basics/images/';
+            html = html.replace(/(src=")\.\.\/images\//g, '$1' + base + prefix);
             return html;
           });
           hook.doneEach(function () {
