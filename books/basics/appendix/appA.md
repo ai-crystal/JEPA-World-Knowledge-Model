@@ -34,7 +34,7 @@
 
 ## A.2　延伸阅读
 
-这一册涉及的工作按主题列在下面。想读原文的读者可以直接按 arXiv 编号检索，中文综述可以配合进阶篇与专业篇一起看。
+这一册涉及的工作按主题列在下面。想读原文的读者可以直接按 arXiv 编号检索，中文综述可以在同一主题的其它资料里找到。
 
 - 语言模型与规模：Brown 等，*Language Models are Few-Shot Learners*，2020（arXiv:2005.14165）；Kaplan 等，*Scaling Laws for Neural Language Models*，2020（arXiv:2001.08361）。
 - 注意力与视觉主干：Vaswani 等，*Attention Is All You Need*，2017（arXiv:1706.03762）；Dosovitskiy 等，*An Image is Worth 16x16 Words*，2021（arXiv:2010.11929）。
