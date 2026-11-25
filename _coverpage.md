@@ -2,8 +2,11 @@
 
 > 从语言模型到 JEPA 的三部曲
 
-**两个视角，两段文字，两帧画面，本该指向同一个世界。**
+语言模型把整个互联网读了一遍，仍然说不清一个杯子放在桌沿时会不会掉下去。它缺的不是参数，而是关于世界的那份表征。JEPA 给出的答案很克制：不去重建像素，只在表征空间里预测。
 
-Dr. Dezeming　·　2026 年 · 第一版
+**Dr. Dezeming**　·　2026
 
-[开始阅读](books/basics/README.md)　<a href="output/jepa-basics.pdf" target="_blank" rel="noopener">下载入门篇 PDF</a>
+<p class="cover-links">
+<a href="#/books/basics/README">开始阅读</a>
+<a href="#/README">书目与下载</a>
+</p>
