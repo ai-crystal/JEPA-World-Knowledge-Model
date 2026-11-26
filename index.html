@@ -46,8 +46,13 @@
       homepage: 'README.md',
       loadSidebar: true,
       coverpage: true,
-      relativePath: true,
       subMaxLevel: 2,
+      alias: {
+        '.*books/basics/.*_sidebar\.md': '/books/basics/_sidebar.md',
+        '.*books/practice/.*_sidebar\.md': '/books/practice/_sidebar.md',
+        '.*books/theory/.*_sidebar\.md': '/books/theory/_sidebar.md',
+        '.*_sidebar\.md': '/_sidebar.md'
+      },
       maxLevel: 3,
       auto2top: true,
       noCompileLinks: ['output/', '\\.pdf$'],
@@ -71,23 +76,36 @@
       },
       mermaid: { theme: 'default' },
       plugins: [
-        function (hook) {
-          hook.doneEach(function () {
-            var route = decodeURI(location.hash.replace(/^#\/?/, '').split('?')[0]);
+        function (hook, vm) {
+          hook.afterEach(function (html) {
+            // 在插入 DOM 之前就把 ../images/... 解析成绝对地址，避免浏览器先发一次 404。
+            var route = (vm && vm.route && vm.route.path) ||
+                        decodeURI(location.hash.replace(/^#\/?/, '').split('?')[0]);
+            route = route.replace(/^\/+/, '');
             if (!route || /\/$/.test(route)) { route += 'README.md'; }
+            if (!/\.md$/.test(route)) { route += '.md'; }
             var dir = route.replace(/[^\/]*$/, '');
-            function normalize(p) {
-              var stack = dir.split('/').filter(Boolean);
-              p.split('/').forEach(function (seg) {
-                if (seg === '..') { stack.pop(); }
-                else if (seg !== '.' && seg !== '') { stack.push(seg); }
-              });
-              return '/' + stack.join('/');
-            }
+            var base = new URL(dir, document.baseURI);
+            return html.replace(/src="(\.\.\/images\/[^"]+)"/g, function (m, src) {
+              return 'src="' + new URL(src, base).href + '"';
+            });
+          });
+
+          hook.doneEach(function () {
+            // 章节里的图片写 ../images/NN/x.png（GitHub 直接看 md 也能显示），
+            // 这里用 docsify 的当前路由推出章节所在目录，再相对站点根解析，
+            // 项目页（https://<user>.github.io/<repo>/）会自动带上仓库前缀。
+            var route = (vm && vm.route && vm.route.path) ||
+                        decodeURI(location.hash.replace(/^#\/?/, '').split('?')[0]);
+            route = route.replace(/^\/+/, '');
+            if (!route || /\/$/.test(route)) { route += 'README.md'; }
+            if (!/\.md$/.test(route)) { route += '.md'; }
+            var dir = route.replace(/[^\/]*$/, '');
+            var base = new URL(dir, document.baseURI);
             document.querySelectorAll('.markdown-section img').forEach(function (img) {
               var src = img.getAttribute('src') || '';
-              if (src && !/^(https?:|\/|data:)/.test(src)) {
-                img.setAttribute('src', normalize(src));
+              if (src && !/^(https?:|data:|\/)/.test(src)) {
+                img.setAttribute('src', new URL(src, base).href);
               }
             });
             if (window.renderMathInElement) {
