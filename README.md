@@ -8,7 +8,7 @@
 
 作者：Dr. Dezeming　·　2026
 
-**在线阅读**：[在线阅读站](https://ai-crystal.github.io/world-map-jepa/)　·　**仓库**：[GitHub 仓库](https://github.com/ai-crystal/world-map-jepa)
+**在线阅读**：[在线阅读站](https://ai-crystal.github.io/JEPA-World-Knowledge-Model/)　·　**仓库**：[GitHub 仓库](https://github.com/ai-crystal/JEPA-World-Knowledge-Model)
 
 ## 分册
 
