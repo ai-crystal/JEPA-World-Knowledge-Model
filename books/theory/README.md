@@ -6,7 +6,7 @@
 
 共 8 章 · 78 页
 
-[从第 1 章开始](chapters/ch01.md)　·　<a href="../../output/jepa-theory.pdf" target="_blank" rel="noopener" data-router-ignore>下载本册 PDF</a>
+[从第 1 章开始](chapters/ch01.md)　·　<a href="../../output/v3-theory.pdf" target="_blank" rel="noopener" data-router-ignore>下载本册 PDF</a>
 
 ## 目录
 

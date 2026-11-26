@@ -87,9 +87,15 @@
             if (!/\.md$/.test(route)) { route += '.md'; }
             var dir = route.replace(/[^\/]*$/, '');
             var base = new URL(dir, document.baseURI);
-            return html.replace(/src="(\.\.\/images\/[^"]+)"/g, function (m, src) {
+            html = html.replace(/src="(\.\.\/images\/[^"]+)"/g, function (m, src) {
               return 'src="' + new URL(src, base).href + '"';
             });
+            // 册内 README 里的 ../../output/xxx.pdf 也是为 GitHub 写的相对路径，
+            // 在站点里同样按当前目录解析成绝对地址。
+            html = html.replace(/href="((?:\.\.\/)+output\/[^"]+)"/g, function (m, href) {
+              return 'href="' + new URL(href, base).href + '"';
+            });
+            return html;
           });
 
           hook.doneEach(function () {

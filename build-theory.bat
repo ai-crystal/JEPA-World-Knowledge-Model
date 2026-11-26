@@ -31,10 +31,10 @@ echo [4/5] check markdown ...
 
 echo.
 echo [5/5] check PDF text layer ...
-"%PYEXE%" books\build\checks\verify_pdf_text.py output\jepa-%BOOK%.pdf
+"%PYEXE%" books\build\checks\verify_pdf_text.py output\v3-theory.pdf
 
 echo.
-echo Done: output\jepa-%BOOK%.pdf
+echo Done: output\v3-theory.pdf
 if /i not "%~1"=="silent" pause
 exit /b 0
 

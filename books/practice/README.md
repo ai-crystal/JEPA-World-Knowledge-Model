@@ -6,7 +6,7 @@
 
 共 9 章 · 83 页
 
-[从第 1 章开始](chapters/ch01.md)　·　<a href="../../output/jepa-practice.pdf" target="_blank" rel="noopener" data-router-ignore>下载本册 PDF</a>
+[从第 1 章开始](chapters/ch01.md)　·　<a href="../../output/v2-practice.pdf" target="_blank" rel="noopener" data-router-ignore>下载本册 PDF</a>
 
 ## 目录
 
