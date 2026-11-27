@@ -192,6 +192,136 @@ def fig_kernel():
     return fs.save(fig, "theory", "ch06", "induced-kernel")
 
 
+# ---------------------------------------------------------------- 图 6-3
+def fig_law_residual():
+    """缩放律的拟合残差。数字全部取自论文正文与附录，逐点的 R@1 没有随文发布。"""
+    fig = plt.figure(figsize=(6.9, 3.45))
+
+    # ---- 左：四组均方根误差
+    axl = fig.add_axes([0.283, 0.185, 0.318, 0.735])
+    rows = [
+        ("拟合的 45 个格子", .007, fs.BLUE),
+        ("留出的 8 个格子", .0115, fs.FAINT),
+        ("预测的 85 次运行", .0093, fs.BLUE),
+        ("其中 $q\\geq .1$", .0065, "#7FA6E8"),
+        ("其中 $.01\\leq q<.1$", .0071, "#7FA6E8"),
+        ("其中 $q<.01$", .012, fs.ACCENT),
+    ]
+    ys = np.arange(len(rows))
+    for y, (name, val, col) in zip(ys, rows):
+        axl.barh(y, val, height=.56, color=col, edgecolor="none", zorder=3)
+        lab = ("%.4f" % val)[1:].rstrip("0")
+        axl.text(val + .0006, y, lab, va="center", ha="left", fontsize=8.0,
+                 color=fs.INK, zorder=4)
+    axl.set_yticks(ys)
+    axl.set_yticklabels([r[0] for r in rows], fontsize=8.2)
+    axl.set_ylim(-.7, len(rows) - .3)
+    axl.set_xlim(0, .0172)
+    axl.set_xticks([0, .004, .008, .012, .016])
+    axl.set_xticklabels(["0", ".004", ".008", ".012", ".016"], fontsize=8.0)
+    axl.set_xlabel("均方根误差（R@1）", fontsize=8.6, labelpad=5)
+    axl.axvline(.0096, color=fs.MUTED, lw=1.0, ls=(0, (4, 2.6)), zorder=2)
+    fs.clean(axl, grid=False)
+    axl.tick_params(length=2.5)
+    axl.text(.0104, -0.52, ".0096", fontsize=7.8, color=fs.MUTED, ha="left", va="center")
+    axl.text(0.0, 1.045, "(a)", transform=axl.transAxes, fontsize=9.0, color=fs.INK,
+             weight="bold", ha="left", va="bottom")
+
+    # ---- 右：3.2 亿个样本处的实测减预测
+    axr = fig.add_axes([0.700, 0.185, 0.278, 0.735])
+    pts = [("0", 0.001), (".1", -0.041), ("1", -0.037)]
+    xs = np.arange(len(pts))
+    for x, (name, res) in zip(xs, pts):
+        col = fs.ACCENT if res < -.01 else fs.GREEN
+        axr.bar(x, res, width=.46, color=col, edgecolor="none", zorder=3)
+        dy = -.004 if res < 0 else .004
+        lab = ("\u2212" + ("%.3f" % -res)[1:]) if res < 0 else ("+" + ("%.3f" % res)[1:])
+        axr.text(x, res + dy, lab, ha="center", va="top" if res < 0 else "bottom",
+                 fontsize=8.2, color=fs.INK, zorder=4)
+    axr.axhline(0, color=fs.FAINT, lw=0.9, zorder=2)
+    axr.set_xticks(xs)
+    axr.set_xticklabels(["$q=%s$" % p[0] for p in pts], fontsize=8.4)
+    axr.set_xlim(-.62, 2.62)
+    axr.set_ylim(-.052, .020)
+    axr.set_yticks([-.04, -.02, 0, .02])
+    axr.set_yticklabels(["−.04", "−.02", "0", ".02"], fontsize=8.0)
+    axr.set_xlabel("好视图比例", fontsize=8.6, labelpad=5)
+    axr.set_ylabel("实测减预测（R@1）", fontsize=8.6, labelpad=6)
+    fs.clean(axr, grid=False)
+    axr.tick_params(length=2.5)
+    fs.label(axr, 1.35, .0145, "3.2 亿个样本，拟合范围的四倍", fs=7.8, color=fs.MUTED)
+    axr.text(0.0, 1.045, "(b)", transform=axr.transAxes, fontsize=9.0, color=fs.INK,
+             weight="bold", ha="left", va="bottom")
+    return fs.save(fig, "theory", "ch06", "law-residual")
+
+
+# ---------------------------------------------------------------- 图 6-4
+def fig_tau_epsilon():
+    """定理 4 的两项：τ 随混合程度与间隙的变化，以及两条范数支的取小。"""
+    k = 4
+    fig = plt.figure(figsize=(6.9, 3.30))
+
+    # ---- 左：τ 随 ε 的斜率是 2√2√k / δ
+    axl = fig.add_axes([0.085, 0.180, 0.395, 0.720])
+    eps = np.linspace(0, 0.30, 400)
+    trivial = np.sqrt(2 * k)
+    for delta, col in [(.5, fs.BLUE), (.2, fs.TEAL), (.1, fs.GOLD), (.05, fs.ACCENT)]:
+        tau = 2 * np.sqrt(2) * np.sqrt(k) * eps / delta
+        axl.plot(eps, tau, color=col, lw=1.5, zorder=3, label="$\\delta=%.2g$" % delta)
+    axl.axhspan(trivial, 3.55, color=fs.LIGHT, zorder=1)
+    axl.axhline(trivial, color=fs.MUTED, lw=1.0, ls=(0, (4, 2.6)), zorder=2)
+    axl.set_xlim(0, .30)
+    axl.set_ylim(0, 3.55)
+    axl.set_xticks([0, .1, .2, .3])
+    axl.set_xticklabels(["0", ".1", ".2", ".3"], fontsize=8.0)
+    axl.set_yticks([0, 1, 2, 3])
+    axl.set_xlabel("混合程度 $\\varepsilon_m$", fontsize=8.8, labelpad=5)
+    axl.set_ylabel("$\\tau_m$", fontsize=9.2, labelpad=4)
+    fs.clean(axl, grid=False)
+    axl.tick_params(length=2.5)
+    fs.label(axl, .152, 3.36, "界在这里没有信息量", fs=7.8, color=fs.MUTED)
+    fs.label(axl, .205, 2.60, "$\\sqrt{2k}=2.83$", fs=8.0, color=fs.MUTED, ha="right")
+    axl.legend(loc="lower right", fontsize=8.0, handlelength=1.7, borderpad=0.3,
+               labelspacing=0.35, bbox_to_anchor=(0.985, 0.035))
+    axl.text(0.0, 1.055, "(a)", transform=axl.transAxes, fontsize=9.0, color=fs.INK,
+             weight="bold", ha="left", va="bottom")
+
+    # ---- 右：两条范数支的相对大小，横轴是 ε^HS / ε
+    axr = fig.add_axes([0.590, 0.180, 0.388, 0.720])
+    rho = np.linspace(1.0, 3.0, 400)
+    op = np.ones_like(rho)                      # √k ε，归一化后恒为 1
+    hs = rho / np.sqrt(k / 2.0)                 # √2 ε^HS，同样归一化
+    axr.plot(rho, op, color=fs.BLUE, lw=1.4, ls=(0, (5, 2.4)), zorder=3,
+             label="$\\sqrt{k}\\varepsilon_m$（算子范数）")
+    axr.plot(rho, hs, color=fs.GOLD, lw=1.4, ls=(0, (1.2, 2.0)), zorder=3,
+             label="$\\sqrt{2}\\varepsilon_m^{\\mathrm{HS}}$（HS 范数）")
+    axr.plot(rho, np.minimum(op, hs), color=fs.INK, lw=2.0, zorder=4, label="两者取小")
+    cross = np.sqrt(k / 2.0)
+    axr.plot([cross, cross], [0, 1.0], color=fs.MUTED, lw=0.9, ls=(0, (3, 2.5)), zorder=2)
+    axr.scatter([cross], [1.0], s=26, color=fs.INK, zorder=5, edgecolor="white", linewidth=0.8)
+    axr.set_xlim(1.0, 3.0)
+    axr.set_ylim(0, 2.15)
+    axr.set_xticks([1, 1.5, 2, 2.5, 3])
+    axr.set_xticklabels(["1", "1.5", "2", "2.5", "3"], fontsize=8.0)
+    axr.set_yticks([0, .5, 1, 1.5, 2])
+    axr.set_yticklabels(["0", "0.5", "1", "1.5", "2"], fontsize=8.0)
+    axr.set_xlabel("$\\varepsilon_m^{\\mathrm{HS}}/\\varepsilon_m$", fontsize=9.0, labelpad=5)
+    axr.set_ylabel("混合项（以 $\\sqrt{k}\\,\\varepsilon_m$ 为单位）", fontsize=8.8, labelpad=6)
+    fs.clean(axr, grid=False)
+    axr.tick_params(length=2.5)
+    axr.legend(loc="lower right", fontsize=7.6, handlelength=1.8, borderpad=0.3,
+               labelspacing=0.35, bbox_to_anchor=(0.985, 0.035))
+    axr.annotate("折点在 $\\sqrt{k/2}=1.41$", xy=(cross, 0.97), xytext=(1.03, 0.30),
+                 fontsize=8.0, color=fs.INK, ha="left", va="center",
+                 arrowprops=dict(arrowstyle="-|>", color=fs.FAINT, lw=0.9,
+                                 shrinkA=2, shrinkB=3, mutation_scale=7))
+    axr.text(0.0, 1.055, "(b)", transform=axr.transAxes, fontsize=9.0, color=fs.INK,
+             weight="bold", ha="left", va="bottom")
+    return fs.save(fig, "theory", "ch06", "tau-epsilon")
+
+
 if __name__ == "__main__":
     fig_reach()
     fig_kernel()
+    fig_law_residual()
+    fig_tau_epsilon()

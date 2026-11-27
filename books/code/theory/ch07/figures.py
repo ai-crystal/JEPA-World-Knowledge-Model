@@ -164,7 +164,86 @@ def fig_temperature_margin():
     return fs.save(fig, "theory", "ch07", "temperature-margin")
 
 
+# ---------------------------------------------------------------- 图 7-4
+def fig_glk():
+    """GL(k) 与 O(k) 的自由度：维数随 k 增长，以及极分解把参数切成两段。"""
+    ks = np.arange(2, 1601)
+    gl = ks.astype(float) ** 2
+    orth = ks * (ks - 1) / 2.0
+    spd = ks * (ks + 1) / 2.0
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.45, 3.30),
+                             gridspec_kw=dict(width_ratios=[1.20, 1.0]))
+
+    ax = axes[0]
+    ax.loglog(ks, gl, color=fs.ACCENT, lw=1.9, label=r"$GL(k)$，$k^2$")
+    ax.loglog(ks, orth, color=fs.BLUE, lw=1.9, label=r"$O(k)$，$k(k-1)/2$")
+    ax.loglog(ks, spd, color=fs.GREEN, lw=1.4, ls=(0, (5, 3)),
+              label=r"两者之差，$k(k+1)/2$")
+
+    k0 = 768
+    ax.plot([k0, k0], [2.0e5, 1.36e6], color=fs.FAINT, lw=0.9, ls=(0, (2, 3)),
+            zorder=1)
+    ax.scatter([k0], [k0 ** 2], s=24, color=fs.ACCENT, zorder=6)
+    ax.scatter([k0], [k0 * (k0 - 1) / 2], s=24, color=fs.BLUE, zorder=6)
+    ax.text(k0, 1.40e6, "$k=768$", fontsize=8.2, color=fs.MUTED, ha="center", va="bottom")
+    ax.text(0.975, 0.045, "$k=768$：589,824 对 294,528，\n差 295,296，与旋转本身同量级",
+            transform=ax.transAxes, fontsize=8.3, color=fs.INK, ha="right", va="bottom",
+            linespacing=1.5)
+    ax.set_xlim(2, 2200)
+    ax.set_ylim(1, 4e6)
+    ax.set_xlabel("嵌入维度 $k$")
+    ax.set_ylabel("参数个数")
+    ax.set_title("(a) 两个群的维数随 $k$ 增长", fontsize=10.0, color=fs.INK, pad=5)
+    ax.set_xticks([2, 10, 100, 1000])
+    ax.set_xticklabels(["2", "10", "100", "1000"])
+    fs.clean(ax, grid=True)
+    ax.legend(loc="upper left", fontsize=8.1, frameon=True, facecolor="white",
+              edgecolor="none", framealpha=0.92, borderpad=0.42, handlelength=1.5,
+              labelspacing=0.42)
+
+    axb = axes[1]
+    axb.set_xlim(0, 1.02)
+    axb.set_ylim(0, 1)
+    axb.axis("off")
+    axb.set_title("(b) 极分解把参数切两半", fontsize=10.0, color=fs.INK, pad=5)
+    x0, x1 = 0.135, 0.905
+    for lab, k, y in (("$k=2$", 2, 0.565), ("$k=768$", 768, 0.265)):
+        n_o = k * (k - 1) / 2.0
+        n_s = k * (k + 1) / 2.0
+        tot = n_o + n_s
+        xm = x0 + (x1 - x0) * n_o / tot
+        axb.add_patch(plt.Rectangle((x0, y), xm - x0, 0.155, facecolor="#DBEAFE",
+                                    edgecolor=fs.BLUE, lw=1.1, zorder=3))
+        axb.add_patch(plt.Rectangle((xm, y), x1 - xm, 0.155, facecolor="#FDEBE1",
+                                    edgecolor=fs.ACCENT, lw=1.1, zorder=3))
+        axb.text(x0 - 0.022, y + 0.078, lab, fontsize=9.4, color=fs.INK,
+                 ha="right", va="center")
+        axb.text((x0 + xm) / 2, y + 0.096, "旋转", fontsize=8.2, color=fs.BLUE,
+                 ha="center", va="center", zorder=4)
+        axb.text((x0 + xm) / 2, y + 0.050, f"{n_o:,.0f}", fontsize=9.0, color=fs.BLUE,
+                 ha="center", va="center", zorder=4, weight="bold")
+        axb.text((xm + x1) / 2, y + 0.096, "拉伸剪切", fontsize=8.2, color=fs.ACCENT,
+                 ha="center", va="center", zorder=4)
+        axb.text((xm + x1) / 2, y + 0.050, f"{n_s:,.0f}", fontsize=9.0, color=fs.ACCENT,
+                 ha="center", va="center", zorder=4, weight="bold")
+        axb.text(x0, y - 0.038, f"合计 {tot:,.0f} 个参数", fontsize=8.2, color=fs.MUTED,
+                 ha="left", va="top")
+
+    axb.text(0.5, 0.895, "$G=QP$，$Q\\in O(k)$、$P$ 对称正定", fontsize=9.0,
+             color=fs.INK, ha="center", va="center")
+    axb.text(0.5, 0.075, "两段拼起来才是整个可逆群，\n没有任何一对参数互相重复", fontsize=8.4,
+             color=fs.MUTED, ha="center", va="center", linespacing=1.6)
+
+    fig.subplots_adjust(left=0.085, right=0.985, top=0.885, bottom=0.135, wspace=0.30)
+    print("k=2: GL %d, O %d, diff %d" % (4, 1, 3))
+    print("k=768: GL %s, O %s, diff %s" % (f"{768 ** 2:,}", f"{768 * 767 // 2:,}",
+                                            f"{768 * 769 // 2:,}"))
+    return fs.save(fig, "theory", "ch07", "glk")
+
+
 if __name__ == "__main__":
     fig_next_token_jepa()
     fig_gl_vs_o()
     fig_temperature_margin()
+    fig_glk()

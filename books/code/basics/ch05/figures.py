@@ -354,7 +354,245 @@ def fig_pixel_vs_latent():
     return fs.save(fig, "basics", "ch05", "pixel-vs-latent")
 
 
+# ---------------------------------------------------------------- 图 5-4
+def _thumb(ax, x0, y0, w, n=4, on="#D9C7B2"):
+    """一小块方形缩略图，表示输入图；n x n 个格子。"""
+    h = w * 9.0 / 4.25
+    grid_cells(ax, x0, y0, w, h, n, fs.LIGHT, edge="#FFFFFF", lw=0.5)
+    cw, ch = w / n, h / n
+    for (i, j) in [(0, 0), (0, 1), (1, 0), (1, 1), (2, 2)]:
+        ax.add_patch(Rectangle((x0 + j * cw, y0 + (n - 1 - i) * ch), cw, ch,
+                               facecolor=on, edgecolor="white", lw=0.5, zorder=4))
+    return h
+
+
+def fig_info_flow():
+    fig = plt.figure(figsize=(9.0, 4.25))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+
+    # ============ (a) MAE ============
+    ax.text(0.030, 0.945, "（a）MAE：梯度要穿过解码器", fontsize=9.2, color=fs.GOLD,
+            weight="bold", ha="left", va="center")
+    h = _thumb(ax, 0.030, 0.715, 0.045)
+    fs.label(ax, 0.0525, 0.690, "输入图", fs=8.0, color=fs.MUTED)
+    fs.box(ax, 0.105, 0.690, 0.085, 0.135, "编码器\n632M", fc="white", ec=fs.ACCENT,
+           fs=8.2, lw=1.3)
+    fs.box(ax, 0.245, 0.690, 0.085, 0.135, "解码器\n512 维", fc="white", ec=fs.GOLD,
+           fs=8.2, lw=1.3)
+    fs.box(ax, 0.385, 0.690, 0.075, 0.135, "重建\n像素", fc="white", ec=fs.INK,
+           fs=8.2, lw=1.0)
+    fs.arrow(ax, (0.077, 0.7575), (0.103, 0.7575), color=fs.MUTED, lw=1.0)
+    fs.arrow(ax, (0.192, 0.7575), (0.243, 0.7575), color=fs.MUTED, lw=1.0)
+    fs.arrow(ax, (0.332, 0.7575), (0.383, 0.7575), color=fs.MUTED, lw=1.0)
+
+    fs.box(ax, 0.375, 0.500, 0.090, 0.075, "像素损失", fc="#FFFFFF", ec=fs.INK,
+           fs=8.2, lw=1.0)
+    fs.arrow(ax, (0.4225, 0.688), (0.4225, 0.577), color=fs.MUTED, lw=1.0)
+
+    # 梯度：损失 → 解码器 → 编码器
+    ax.plot([0.373, 0.1475], [0.535, 0.535], color=fs.ACCENT, lw=1.3,
+            ls=(0, (5, 2.5)), zorder=2, solid_capstyle="butt")
+    fs.arrow(ax, (0.1475, 0.535), (0.1475, 0.687), color=fs.ACCENT, lw=1.3,
+             ls=(0, (5, 2.5)), ms=8)
+    fs.label(ax, 0.262, 0.487, "梯度原路返回，穿过解码器", fs=8.0, color=fs.ACCENT)
+
+    for i, line in enumerate([
+            "编码器只看 64 个可见 token，占全图 25%。",
+            "解码器处理全部 256 个 token，8 层 512 维，",
+            "约 25M 参数（按宽度深度估算），每 token 的",
+            "FLOPs 约为 ViT-L 的 9%。预训练后解码器丢弃。"]):
+        fs.label(ax, 0.030, 0.400 - i * 0.056, line, fs=8.0, color=fs.INK, ha="left")
+
+    # ============ (b) I-JEPA ============
+    ax.text(0.510, 0.945, "（b）I-JEPA：梯度只到上下文编码器", fontsize=9.2,
+            color=fs.ACCENT, weight="bold", ha="left", va="center")
+    _thumb(ax, 0.510, 0.508, 0.045)
+    fs.label(ax, 0.5325, 0.483, "输入图", fs=8.0, color=fs.MUTED)
+
+    fs.box(ax, 0.585, 0.748, 0.095, 0.122, "目标编码器\n632M", fc="#F6F6F6",
+           ec=fs.FAINT, fs=8.2, lw=1.0)
+    fs.box(ax, 0.735, 0.748, 0.085, 0.122, "目标向量", fc="#F6F6F6", ec=fs.FAINT,
+           fs=8.2, lw=1.0)
+    fs.box(ax, 0.875, 0.748, 0.085, 0.122, "L2 损失", fc="white", ec=fs.INK,
+           fs=8.2, lw=1.2)
+    fs.box(ax, 0.585, 0.448, 0.095, 0.122, "上下文\n编码器", fc="white", ec=fs.ACCENT,
+           fs=8.2, lw=1.3)
+    fs.box(ax, 0.735, 0.448, 0.095, 0.122, "预测器\n约 22M", fc="white", ec=fs.ACCENT,
+           fs=8.2, lw=1.3)
+    fs.box(ax, 0.875, 0.448, 0.085, 0.122, "预测\n向量", fc="white", ec=fs.ACCENT,
+           fs=8.2, lw=1.3)
+    fs.box(ax, 0.722, 0.596, 0.120, 0.056, "位置 token", fc="#FBF7F0", ec=fs.FAINT,
+           fs=8.0, lw=1.0, rounded=0.014)
+
+    fs.arrow(ax, (0.558, 0.588), (0.583, 0.740), color=fs.MUTED, lw=1.0, rad=-0.25)
+    fs.arrow(ax, (0.558, 0.518), (0.583, 0.512), color=fs.MUTED, lw=1.0, rad=0.2)
+    fs.arrow(ax, (0.682, 0.809), (0.733, 0.809), color=fs.MUTED, lw=1.0)
+    fs.arrow(ax, (0.822, 0.809), (0.873, 0.809), color=fs.MUTED, lw=1.0)
+
+    # 前向（实线）与梯度（虚线）并排
+    fs.arrow(ax, (0.682, 0.524), (0.733, 0.524), color=fs.MUTED, lw=1.0)
+    fs.arrow(ax, (0.733, 0.498), (0.684, 0.498), color=fs.ACCENT, lw=1.2,
+             ls=(0, (5, 2.5)))
+    fs.arrow(ax, (0.832, 0.524), (0.873, 0.524), color=fs.MUTED, lw=1.0)
+    fs.arrow(ax, (0.873, 0.498), (0.834, 0.498), color=fs.ACCENT, lw=1.2,
+             ls=(0, (5, 2.5)))
+    fs.arrow(ax, (0.930, 0.572), (0.930, 0.745), color=fs.MUTED, lw=1.0)
+    fs.arrow(ax, (0.902, 0.745), (0.902, 0.580), color=fs.ACCENT, lw=1.2,
+             ls=(0, (5, 2.5)))
+    fs.arrow(ax, (0.7825, 0.596), (0.7825, 0.572), color=fs.MUTED, lw=0.9, ms=7)
+
+    fs.label(ax, 0.7075, 0.809, "$\\bot$", fs=11, color=fs.ACCENT,
+             bbox=dict(boxstyle="circle,pad=0.14", fc="white", ec=fs.ACCENT, lw=0.9))
+    fs.label(ax, 0.7075, 0.700, "停梯度", fs=8.0, color=fs.ACCENT)
+    fs.label(ax, 0.916, 0.662, "梯度", fs=8.0, color=fs.ACCENT, rotation=90)
+
+    for i, line in enumerate([
+            "目标编码器整图前向一次，256 个 token，不记梯度；",
+            "多这一次前向让单步慢约 7%，收敛只要五分之一",
+            "左右的迭代。预测器 384 维 12 层，跑四遍。",
+            "上下文编码器只处理可见 token，反向到它为止。"]):
+        fs.label(ax, 0.510, 0.400 - i * 0.056, line, fs=8.0, color=fs.INK, ha="left")
+
+    fig.text(0.5, 0.028, "实线示前向，橙色虚线示梯度方向，$\\bot$ 示停梯度",
+             ha="center", va="center", fontsize=8.4, color=fs.MUTED)
+    return fs.save(fig, "basics", "ch05", "info-flow")
+
+
+# ---------------------------------------------------------------- 图 5-5
+def _union_area(rects):
+    """若干轴对齐矩形的并集面积，矩形按 (x0, y0, x1, y1) 给，用容斥逐项算。"""
+    n = len(rects)
+    total = 0.0
+    for mask in range(1, 1 << n):
+        x0, y0, x1, y1 = -1e9, -1e9, 1e9, 1e9
+        bits = 0
+        for k in range(n):
+            if mask >> k & 1:
+                bits += 1
+                x0 = max(x0, rects[k][0]); y0 = max(y0, rects[k][1])
+                x1 = min(x1, rects[k][2]); y1 = min(y1, rects[k][3])
+        area = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+        total += area if bits % 2 else -area
+    return total
+
+
+def _sim_masks(n=3000, seed=20261127):
+    """按论文的比例区间采样上下文块与四个目标块，返回可见比例与泄漏比例。
+    上下文块面积 0.85–1.0、长宽比为 1；目标块面积 0.15–0.2、长宽比 0.75–1.5，
+    四个块各落在一个象限附近，避免互相盖住。"""
+    rng = np.random.default_rng(seed)
+    vis_rm, vis_raw, leak = [], [], []
+    for _ in range(n):
+        side = float(rng.uniform(0.85, 1.0)) ** 0.5
+        cx = rng.uniform(side / 2, 1 - side / 2)
+        cy = rng.uniform(side / 2, 1 - side / 2)
+        ctx = (cx - side / 2, cy - side / 2, side, side)
+        boxes = []
+        for k in range(4):
+            cxx = 0.25 + 0.5 * (k % 2) + rng.uniform(-0.05, 0.05)
+            cyy = 0.25 + 0.5 * (k // 2) + rng.uniform(-0.05, 0.05)
+            st = rng.uniform(0.15, 0.2)
+            ar = rng.uniform(0.75, 1.5)
+            w, hh = (st * ar) ** 0.5, (st / ar) ** 0.5
+            x = float(np.clip(cxx, w / 2, 1 - w / 2))
+            y = float(np.clip(cyy, hh / 2, 1 - hh / 2))
+            boxes.append((x - w / 2, y - hh / 2, w, hh))
+        clipped = [(max(b[0], ctx[0]), max(b[1], ctx[1]),
+                    min(b[0] + b[2], ctx[0] + ctx[2]),
+                    min(b[1] + b[3], ctx[1] + ctx[3])) for b in boxes]
+        cov = _union_area(clipped)
+        tgt = _union_area([(b[0], b[1], b[0] + b[2], b[1] + b[3]) for b in boxes])
+        vis_rm.append(side * side - cov)
+        vis_raw.append(side * side)
+        leak.append(cov / tgt)
+    return np.array(vis_rm), np.array(vis_raw), np.array(leak)
+
+
+def fig_mask_overlap():
+    idx = _cell_index()
+    img = _photo()
+    in_ctx = np.zeros((N, N), bool)
+    in_ctx[0:15, 0:15] = True
+
+    fig = plt.figure(figsize=(7.6, 3.55))
+    axes = [fig.add_axes([0.030, 0.215, 0.215, 0.620]),
+            fig.add_axes([0.283, 0.215, 0.215, 0.620])]
+    for a in axes:
+        a.set_xlim(0, N); a.set_ylim(0, 17.4); a.set_aspect("equal"); a.axis("off")
+
+    for a, drop in zip(axes, [True, False]):
+        for i in range(N):
+            for j in range(N):
+                k = idx[i, j]
+                if not in_ctx[i, j]:
+                    fc = "#F1F0ED"
+                elif k >= 0 and drop:
+                    fc = "#D6D6D2"          # 被挖掉的目标区
+                elif k >= 0:
+                    fc = "#F0A98E"          # 泄漏：目标区仍可见
+                else:
+                    fc = "#7FA6F0"          # 可见上下文
+                a.add_patch(Rectangle((j, N - 1 - i), 1, 1, facecolor=fc,
+                                       edgecolor="#E2E2E0", lw=0.45, zorder=3))
+        for k, (r0, r1, c0, c1, col) in enumerate(BLOCKS):
+            a.add_patch(Rectangle((c0 + 0.10, N - r1 + 0.10), c1 - c0 - 0.20, r1 - r0 - 0.20,
+                                   facecolor="none", edgecolor=col, lw=1.0, zorder=7))
+        a.add_patch(Rectangle((0.04, 1.04), 14.92, 14.92, facecolor="none",
+                              edgecolor=fs.INK, lw=1.2, ls=(0, (4, 3)), zorder=8))
+
+    kept = int((in_ctx & (idx < 0)).sum())
+    tot = N * N
+    axes[0].text(7.5, 16.2, f"可见 {kept} 格，占 {kept / tot * 100:.0f}%", ha="center",
+                 va="bottom", fontsize=8.2, color=fs.INK)
+    axes[1].text(7.5, 16.2, f"可见 {int(in_ctx.sum())} 格，占 {int(in_ctx.sum()) / tot * 100:.0f}%",
+                 ha="center", va="bottom", fontsize=8.2, color="#9A3412")
+    fig.text(0.137, 0.135, "（a）挖掉与目标重叠的部分", ha="center", va="center",
+             fontsize=8.4, color=fs.INK)
+    fig.text(0.390, 0.135, "（b）忘记挖，目标整块留在上下文里", ha="center", va="center",
+             fontsize=8.4, color="#9A3412")
+    fig.text(0.137, 0.075, f"蓝色可见，灰色是被挖掉的目标区", ha="center", va="center",
+             fontsize=8.0, color=fs.MUTED)
+    fig.text(0.390, 0.075, "橙色全是泄漏，预测器可以直接抄", ha="center", va="center",
+             fontsize=8.0, color=fs.MUTED)
+
+    # (c) 随机采样下两种做法的可见比例
+    vis_rm, vis_raw, leak = _sim_masks()
+    axc = fig.add_axes([0.600, 0.230, 0.360, 0.615])
+    bins = np.linspace(0, 1, 41)
+    n1, _, _ = axc.hist(vis_rm, bins=bins, color=fs.BLUE, alpha=0.72, label="挖掉重叠")
+    n2, _, _ = axc.hist(vis_raw, bins=bins, color="#E8B4A2", alpha=0.85, label="不挖")
+    ymax = max(n1.max(), n2.max())
+    for v, c in [(vis_rm.mean(), fs.BLUE), (vis_raw.mean(), "#9A3412")]:
+        axc.axvline(v, color=c, lw=1.1, ls=(0, (4, 2.5)), zorder=4)
+    axc.set_xlim(0, 1)
+    axc.set_ylim(0, ymax * 1.55)
+    axc.set_yticks([])
+    axc.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+    axc.set_xticklabels(["0", "25%", "50%", "75%", "100%"], fontsize=8.0)
+    axc.set_xlabel("送进上下文编码器的 patch 比例", fontsize=8.0, labelpad=3)
+    fs.clean(axc, spines=("bottom",))
+    axc.set_title("（c）三千次随机掩码的可见比例", fontsize=8.4, color=fs.INK, pad=7)
+    axc.annotate(f"均值 {vis_rm.mean() * 100:.0f}%", xy=(vis_rm.mean(), ymax * 0.72),
+                 xytext=(0.42, ymax * 1.08), fontsize=8.2, color=fs.BLUE,
+                 arrowprops=dict(arrowstyle="-|>", color=fs.BLUE, lw=0.9))
+    axc.annotate(f"均值 {vis_raw.mean() * 100:.0f}%", xy=(vis_raw.mean(), ymax * 0.52),
+                 xytext=(0.55, ymax * 0.80), fontsize=8.2, color="#9A3412",
+                 arrowprops=dict(arrowstyle="-|>", color="#9A3412", lw=0.9))
+    axc.legend(loc="upper center", fontsize=8.0, handlelength=1.1, ncol=2,
+               bbox_to_anchor=(0.52, 1.04))
+    fig.text(0.780, 0.075,
+             f"目标块面积有 {np.median(leak) * 100:.0f}% 落在上下文里（中位数）",
+             ha="center", va="center", fontsize=8.0, color=fs.MUTED)
+    print("visible removed mean %.3f median %.3f | raw %.3f | leak median %.3f min %.3f | frac>0.9 %.3f"
+          % (vis_rm.mean(), np.median(vis_rm), vis_raw.mean(), np.median(leak), leak.min(),
+             float((leak > 0.9).mean())))
+    return fs.save(fig, "basics", "ch05", "mask-overlap")
+
+
 if __name__ == "__main__":
     fig_three_networks()
     fig_mask_blocks()
     fig_pixel_vs_latent()
+    fig_info_flow()
+    fig_mask_overlap()

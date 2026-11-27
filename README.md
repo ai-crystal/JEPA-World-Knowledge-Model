@@ -14,9 +14,9 @@
 
 | 册 | 书名 | 一句话 | 页数 | 在线阅读 | PDF |
 | --- | --- | --- | ---: | --- | --- |
-| 01 | [入门篇](books/basics/README.md) | 从语言模型到 JEPA 的第一课 | 74 | [阅读](books/basics/README.md) | <a href="output/v1-basics.pdf" target="_blank" rel="noopener" data-router-ignore>下载</a> |
-| 02 | [进阶篇](books/practice/README.md) | 联合嵌入预测的训练与工程 | 83 | [阅读](books/practice/README.md) | <a href="output/v2-practice.pdf" target="_blank" rel="noopener" data-router-ignore>下载</a> |
-| 03 | [专业篇](books/theory/README.md) | 柏拉图表征定理与它的边界 | 78 | [阅读](books/theory/README.md) | <a href="output/v3-theory.pdf" target="_blank" rel="noopener" data-router-ignore>下载</a> |
+| 01 | [入门篇](books/basics/README.md) | 从语言模型到 JEPA 的第一课 | 147 | [阅读](books/basics/README.md) | <a href="output/v1-basics.pdf" target="_blank" rel="noopener" data-router-ignore>下载</a> |
+| 02 | [进阶篇](books/practice/README.md) | 联合嵌入预测的训练与工程 | 141 | [阅读](books/practice/README.md) | <a href="output/v2-practice.pdf" target="_blank" rel="noopener" data-router-ignore>下载</a> |
+| 03 | [专业篇](books/theory/README.md) | 柏拉图表征定理与它的边界 | 128 | [阅读](books/theory/README.md) | <a href="output/v3-theory.pdf" target="_blank" rel="noopener" data-router-ignore>下载</a> |
 
 ## 怎么读
 

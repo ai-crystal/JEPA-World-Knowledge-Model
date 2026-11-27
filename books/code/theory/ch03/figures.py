@@ -156,6 +156,149 @@ def fig_failure_modes():
     return fs.save(fig, "theory", "ch03", "failure-modes")
 
 
+# ---------------------------------------------------------------- 图 3-3
+def pair_world(n_pairs, p=None, within=None):
+    """n_pairs 个互不相连的房间，每间两个状态互为正样本。
+    返回 (p, 正样本分布 Pi)，Pi 的两个边缘都等于 p。"""
+    Z = 2 * n_pairs
+    p = np.full(Z, 1.0 / Z) if p is None else np.asarray(p, float)
+    Pi = np.zeros((Z, Z))
+    for a in range(0, Z, 2):
+        b = a + 1
+        Pi[a, b] = Pi[b, a] = p[a]
+        if within is not None:
+            Pi[a, b] = Pi[b, a] = within
+    return p, Pi
+
+
+def spectrum(p, Pi):
+    """归一化邻接 K = D^{-1/2} Pi D^{-1/2} 的特征值，降序。"""
+    Dm = np.diag(p ** -0.5)
+    K = Dm @ Pi @ Dm
+    return np.linalg.eigvalsh(K)[::-1]
+
+
+def spectral_embedding(p, Pi, k=1):
+    """命题一的谱嵌入 Phi(z)=v(z)/sqrt(p(z))，列按特征值降序，"""
+    Dm = np.diag(p ** -0.5)
+    K = Dm @ Pi @ Dm
+    w, V = np.linalg.eigh(K)
+    w, V = w[::-1], V[:, ::-1]
+    out = []
+    for i in range(k):
+        v = V[:, i].copy()
+        v = v - np.sum(p * v)                 # 去掉常数分量
+        v = v / np.sqrt(np.sum(p * v * v))    # 在 L2(p) 里归一
+        if v[np.argmax(np.abs(v))] < 0:
+            v = -v
+        out.append(v / np.sqrt(p))
+    return w, np.array(out).T
+
+
+def pair_objective(p, Pi, h):
+    """2k - 2 sum_j <h_j, T h_j>_p 的等价写法，直接按定义算。"""
+    h = np.atleast_2d(h.T).T if h.ndim == 1 else h
+    return float(np.sum(Pi * np.sum((h[:, None, :] - h[None, :, :]) ** 2, axis=-1)))
+
+
+def fig_necessity():
+    """三个小世界各破坏一条前提：(a) 有损渲染，(b) 谱间隙为零，(c) 边缘不匹配。"""
+    fig = plt.figure(figsize=(7.0, 2.62))
+
+    # ---- (a) 有损渲染：两个状态共用一个观测
+    ax = fig.add_axes([0.045, 0.20, 0.245, 0.72])
+    xs = np.array([1.0, 2.0, 3.0])
+    h_star = np.array([0.24, 0.58, 0.90])
+    h_lossy = np.array([0.24, 0.54, 0.54])
+    ax.axvspan(1.68, 3.32, color=fs.LIGHT, zorder=0)
+    ax.plot(xs, h_star, color=fs.BLUE, lw=1.1, marker="o", ms=4.2, zorder=4,
+            label=r"$h^\star$（单射）")
+    ax.plot(xs, h_lossy, color=fs.ACCENT, lw=1.1, marker="s", ms=4.0, zorder=4,
+            label=r"$f_2\circ g_2$（有损）")
+    ax.annotate("", xy=(3.0, 0.895), xytext=(3.0, 0.545),
+                arrowprops=dict(arrowstyle="<->", color=fs.MUTED, lw=0.8,
+                                shrinkA=1, shrinkB=1))
+    fs.label(ax, 2.86, 0.72, "必须同值", fs=8.2, color=fs.MUTED, ha="right")
+    fs.label(ax, 2.50, 0.17, "同一观测", fs=8.2, color=fs.MUTED)
+    ax.set_xlim(0.55, 3.45)
+    ax.set_ylim(0.08, 1.12)
+    ax.set_xticks(xs)
+    ax.set_xticklabels([r"$z_1$", r"$z_2$", r"$z_3$"], fontsize=8.6)
+    ax.set_yticks([])
+    ax.set_ylabel("嵌入值（示意）", fontsize=8.4, color=fs.MUTED)
+    fs.clean(ax, spines=("left", "bottom"))
+    ax.legend(loc="upper left", fontsize=7.8, handlelength=1.4,
+              borderaxespad=0.15, labelspacing=0.3)
+    fig.text(0.168, 0.045, "(a) 有损渲染", ha="center", va="center", fontsize=9.0)
+
+    # ---- (b) 谱间隙为零：三个房间，特征值 1 三重退化
+    ax = fig.add_axes([0.415, 0.235, 0.205, 0.685])
+    p3, Pi3 = pair_world(3)
+    mu = spectrum(p3, Pi3)
+    idx = np.arange(len(mu))
+    for i, m in enumerate(mu):
+        col = fs.ACCENT if m > 0 else fs.FAINT
+        ax.vlines(i, 0, m, color=col, lw=1.6, zorder=3)
+        ax.plot([i], [m], marker="o", ms=4.4, color=col, zorder=4,
+                markeredgecolor="white", markeredgewidth=0.7)
+    ax.axhline(0, color=fs.INK, lw=0.8, zorder=2)
+    ax.axvline(1.5, color=fs.INK, lw=0.9, ls=(0, (3, 2.4)), zorder=5)
+    fs.label(ax, 1.62, -0.62, "k=1", fs=8.2, color=fs.INK, ha="left")
+    ax.annotate("", xy=(1.02, 1.15), xytext=(1.30, 1.30),
+                arrowprops=dict(arrowstyle="-|>", color=fs.ACCENT, lw=0.8,
+                                mutation_scale=7, shrinkA=1, shrinkB=1))
+    fs.label(ax, -0.50, 1.34, r"$\mu_1=\mu_2$", fs=8.4, color=fs.ACCENT, ha="left")
+    ax.set_xlim(-0.55, 5.55)
+    ax.set_ylim(-1.45, 1.55)
+    ax.set_xticks(idx)
+    ax.set_xticklabels([str(i) for i in idx], fontsize=8.0)
+    ax.set_yticks([-1, 0, 1])
+    ax.tick_params(axis="y", labelsize=8.0)
+    ax.set_ylabel(r"$\mu_i$", fontsize=9.2)
+    fs.clean(ax, spines=("left", "bottom"))
+    fig.text(0.517, 0.045, "(b) 谱间隙为零", ha="center", va="center", fontsize=9.0)
+
+    # ---- (c) 边缘不匹配：同一条特征函数，两套 1/sqrt(p) 尺度
+    ax = fig.add_axes([0.740, 0.235, 0.235, 0.685])
+    p1 = np.full(4, 0.25)
+    p2 = np.array([0.30, 0.30, 0.20, 0.20])
+    _, Phi1 = spectral_embedding(p1, pair_world(2, p1)[1], k=1)
+    _, Phi2 = spectral_embedding(p2, pair_world(2, p2)[1], k=1)
+    r1 = np.abs(Phi1[:, 0])
+    r2 = np.abs(Phi2[:, 0])
+    xs = np.arange(4)
+    ax.bar(xs - 0.19, r1, width=0.36, color=fs.BLUE, alpha=0.85, zorder=3,
+           label=r"$p_1$ 均匀")
+    ax.bar(xs + 0.19, r2, width=0.36, color=fs.GREEN, alpha=0.85, zorder=3,
+           label=r"$p_2$ 偏斜")
+    for i in xs:
+        ax.plot([i - 0.37, i - 0.01], [r1[i], r1[i]], color=fs.BLUE, lw=0.8, zorder=4)
+    fs.label(ax, -0.10, r1[0] + 0.19, "2.00", fs=8.0, color=fs.BLUE)
+    fs.label(ax, 0.19, r2[0] + 0.16, "1.49", fs=8.0, color=fs.GREEN)
+    fs.label(ax, 3.19, r2[3] + 0.16, "2.74", fs=8.0, color=fs.GREEN)
+    ax.set_ylim(0, 3.55)
+    ax.set_xlim(-0.62, 3.62)
+    ax.set_xticks(xs)
+    ax.set_xticklabels([r"$z_1$", r"$z_2$", r"$z_3$", r"$z_4$"], fontsize=8.6)
+    ax.set_yticks([0, 1, 2, 3])
+    ax.tick_params(axis="y", labelsize=8.0)
+    ax.set_ylabel(r"$\Vert\Phi(z)\Vert$", fontsize=9.2)
+    fs.clean(ax, spines=("left", "bottom"))
+    ax.legend(loc="upper left", fontsize=7.8, handlelength=1.1,
+              borderaxespad=0.15, labelspacing=0.3)
+    fig.text(0.857, 0.045, "(c) 边缘不匹配", ha="center", va="center", fontsize=9.0)
+
+    a = np.array([1.0, 1, 0, 0, 0, 0])
+    a = a - p3 @ a
+    a = a / np.sqrt(p3 @ a ** 2)
+    print("[3-pair world] eig =", np.round(mu, 4))
+    print("[3-pair world] L at a minimiser =", pair_objective(p3, Pi3, a))
+    print("[4-state, p1] |Phi| =", np.round(r1, 4))
+    print("[4-state, p2] |Phi| =", np.round(r2, 4))
+    return fs.save(fig, "theory", "ch03", "necessity")
+
+
 if __name__ == "__main__":
     fig_rotation_orbit()
     fig_failure_modes()
+    fig_necessity()

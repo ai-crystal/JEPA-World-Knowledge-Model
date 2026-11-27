@@ -1,151 +1,229 @@
 # -*- coding: utf-8 -*-
-"""第 8 章插图：证据链总览、三条硬限制的示意。"""
+"""第 8 章插图：三种等价类、识别性阶梯、白化前后的可行解集、可辨识性结论的对照。"""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "common"))
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Rectangle
+from matplotlib.patches import Circle
 import figstyle as fs
 
 
-def fig_chain():
-    """图 8-1：数据 → 视图 → 对齐 → 工具，四段流程与各自的读数。"""
-    fig, ax = fs.canvas(7.0, 3.55)
-    ax.set_xlim(0, 1); ax.set_ylim(0.035, 0.965)
+# ---------------------------------------------------------------- 公共
+def polygon(n=5, r=0.78, off=90.0):
+    th = np.deg2rad(np.array([off + 360.0 * i / n for i in range(n)]))
+    return np.stack([r * np.cos(th), r * np.sin(th)], axis=1)
 
-    rows = [
-        ("1　数据", fs.INK,
-         "Flickr30k 两万九千张图，每张五条人工描述\n网页侧是九亿四千万张图片的文字",
-         "145k 条 → 9.4 亿张", ""),
-        ("2　视图", fs.ACCENT,
-         "决定哪些观测算同一个场景的两次观测\n同图两段描述／同段文字两次损坏／前缀与续写",
-         "定理 1 到 4", "好／坏／下一词"),
-        ("3　对齐", fs.BLUE,
-         "互 10-NN 与单旋转检索，两侧从不共享损失\nFlickr 上 .062 与 .047 与 .042",
-         "42 倍", ".184 对 .154"),
-        ("4　工具", fs.GREEN,
-         "只用二十二万个参数的旋转当接口\n没有配对时靠点云几何把旋转找回来",
-         "CIDEr .430", "零配对 16.4%"),
+
+PTS = polygon(4, 0.78, 108.0)
+
+
+def rot(th):
+    c, s = np.cos(th), np.sin(th)
+    return np.array([[c, -s], [s, c]])
+
+
+def draw_shape(ax, X, color, alpha=1.0, lw=1.0, ms=20, z=3):
+    loop = np.vstack([X, X[:1]])
+    ax.plot(loop[:, 0], loop[:, 1], color=color, lw=lw, alpha=alpha, zorder=z)
+    ax.scatter(X[:, 0], X[:, 1], s=ms, color=color, alpha=alpha, zorder=z + 1,
+               edgecolor="white", linewidth=0.6)
+
+
+def frame(ax, lim=1.22):
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.add_patch(Circle((0, 0), 1.0, fill=False, ec=fs.GRID, lw=0.9,
+                        ls=(0, (3, 3)), zorder=1))
+
+
+def ellipse_of(G, n=240):
+    t = np.linspace(0, 2 * np.pi, n)
+    C = np.stack([np.cos(t), np.sin(t)], axis=1)
+    return C @ G.T
+
+
+# ---------------------------------------------------------------- 图 8-1
+def fig_equivalence():
+    fig = plt.figure(figsize=(7.0, 2.72))
+
+    # (a) 可逆线性：形状被拉伸剪切
+    axa = fig.add_axes([0.010, 0.245, 0.300, 0.690])
+    frame(axa, lim=1.34)
+    draw_shape(axa, PTS, fs.FAINT, alpha=0.75, lw=0.9, ms=13, z=2)
+    for M, c in [(np.array([[1.04, 0.34], [-0.08, 0.76]]), fs.BLUE),
+                 (np.array([[0.78, -0.30], [0.34, 1.00]]), fs.ACCENT)]:
+        E = ellipse_of(M)
+        axa.plot(E[:, 0], E[:, 1], color=c, lw=1.0, alpha=0.45, zorder=2)
+        draw_shape(axa, PTS @ M.T, c, alpha=0.85, lw=1.1, ms=15)
+    fs.label(axa, 0.0, -1.224, "拉伸与剪切", fs=8.6, color=fs.MUTED)
+    fs.label(axa, 0.0, 1.208, "(a) $GL(k)$", fs=10.2, color=fs.BLUE)
+
+    # (b) 正交：只转角度
+    axb = fig.add_axes([0.325, 0.245, 0.300, 0.690])
+    frame(axb, lim=1.34)
+    draw_shape(axb, PTS, fs.FAINT, alpha=0.75, lw=0.9, ms=13, z=2)
+    R = rot(np.deg2rad(25))
+    draw_shape(axb, PTS @ R.T, fs.GREEN, alpha=0.90, lw=1.1, ms=15)
+    p0 = PTS[3]
+    p1 = p0 @ R.T
+    axb.annotate("", xy=p1, xytext=p0,
+                 arrowprops=dict(arrowstyle="-|>", color=fs.GREEN, lw=1.0,
+                                 mutation_scale=8, connectionstyle="arc3,rad=0.28"))
+    axb.add_patch(Circle((0, 0), 0.78, fill=False, ec=fs.INK, lw=0.9, alpha=0.40,
+                         ls=(0, (2, 2)), zorder=1))
+    fs.label(axb, 0.0, -1.224, "只改朝向", fs=8.6, color=fs.MUTED)
+    fs.label(axb, 0.0, 1.208, "(b) $O(k)$", fs=10.2, color=fs.GREEN)
+
+    # (c) 置换：只改名字
+    axc = fig.add_axes([0.650, 0.135, 0.345, 0.795])
+    axc.set_xlim(0, 1)
+    axc.set_ylim(0, 1)
+    axc.axis("off")
+    fs.label(axc, 0.50, 0.955, "(c) 置换", fs=10.2, color=fs.PURPLE)
+    order_a = [1, 2, 3]
+    order_b = [3, 1, 2]
+    colmap = {1: fs.BLUE, 2: fs.ACCENT, 3: fs.GREEN}
+    for i, lab in enumerate(order_a):
+        y = 0.715 - i * 0.175
+        fs.box(axc, 0.020, y - 0.062, 0.245, 0.124, "成分 %d" % lab, fc="white",
+               ec=colmap[lab], fs=8.8, lw=1.0)
+    for i, lab in enumerate(order_b):
+        y = 0.715 - i * 0.175
+        fs.box(axc, 0.735, y - 0.062, 0.245, 0.124, "成分 %d" % lab, fc="white",
+               ec=colmap[lab], fs=8.8, lw=1.0)
+    fs.arrow(axc, (0.290, 0.540), (0.710, 0.540), color=fs.PURPLE, lw=1.2)
+    fs.label(axc, 0.500, 0.610, "$P$", fs=11.0, color=fs.PURPLE)
+    fs.label(axc, 0.500, 0.440, "三个成分换了位置", fs=8.2, color=fs.MUTED)
+    fs.label(axc, 0.500, 0.085, "$P$ 也是正交矩阵，落在 $O(k)$ 里", fs=8.2, color=fs.MUTED)
+
+    fs.save(fig, "theory", "ch08", "equivalence")
+
+
+# ---------------------------------------------------------------- 图 8-2
+def fig_ladder():
+    fig = plt.figure(figsize=(6.9, 2.95))
+    ax = fig.add_axes([0.030, 0.060, 0.950, 0.880])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    steps = [
+        (0.095, 0.370, 0.770, "$GL(k)$", "$k^2$ 个参数", "只有正样本", fs.BLUE),
+        (0.370, 0.660, 0.515, "$O(k)$", "$k(k-1)/2$ 个参数", "平方距离加白化", fs.GREEN),
+        (0.660, 0.945, 0.260, "置换", "$k!$ 个元素，维数 0", "独立性加非高斯", fs.PURPLE),
     ]
+    for x0, x1, y, name, cnt, hypo, col in steps:
+        ax.plot([x0, x1], [y, y], color=col, lw=2.6, solid_capstyle="butt", zorder=3)
+        ax.plot([x0, x0], [y - 0.105, y], color=col, lw=0.9, ls=(0, (2, 2)), zorder=2)
+        fs.label(ax, (x0 + x1) / 2, y + 0.098, name, fs=11.0, color=col)
+        fs.label(ax, (x0 + x1) / 2, y + 0.045, cnt, fs=8.8, color=fs.INK)
+        fs.label(ax, (x0 + x1) / 2, y - 0.058, hypo, fs=8.4, color=fs.MUTED)
 
-    ys = [0.845, 0.615, 0.385, 0.155]
-    h = 0.132
+    ax.plot([0.370, 0.370], [0.515, 0.770], color=fs.FAINT, lw=0.9, ls=(0, (2, 2)), zorder=1)
+    ax.plot([0.660, 0.660], [0.260, 0.515], color=fs.FAINT, lw=0.9, ls=(0, (2, 2)), zorder=1)
 
-    for i, ((name, col, body, k1, k2), yc) in enumerate(zip(rows, ys)):
-        y = yc - h / 2
-        # 阶段名
-        fs.box(ax, 0.012, y, 0.122, h, name, fc="white", ec=col, tc=col,
-               fs=8.4, lw=1.3, weight="bold", rounded=0.018)
-        # 内容卡
-        fs.box(ax, 0.170, y, 0.548, h, body, fc="#FBFBFC", ec="#D8DCE2",
-               fs=7.3, lw=0.9, rounded=0.012)
-        # 右侧读数
-        ax.plot([0.742, 0.742], [y + 0.014, y + h - 0.014], color="#E1E4E9", lw=0.8, zorder=1)
-        fs.label(ax, 0.756, yc + 0.026, k1, fs=8.0, color=col, ha="left", weight="bold")
-        fs.label(ax, 0.756, yc - 0.026, k2, fs=7.2, color=fs.MUTED, ha="left")
+    fs.arrow(ax, (0.048, 0.825), (0.048, 0.215), color=fs.FAINT, lw=1.1, ms=9)
+    fs.label(ax, 0.022, 0.520, "可辨识性增强", fs=8.4, color=fs.MUTED, rotation=90)
 
-    # 左侧竖向流程箭头
-    for i in range(3):
-        y0 = ys[i] - h / 2 - 0.004
-        y1 = ys[i + 1] + h / 2 + 0.004
-        fs.arrow(ax, (0.073, y0), (0.073, y1), color=fs.FAINT, lw=1.0, ms=7)
+    fs.label(ax, 0.095, 0.955, "每加一层统计结构，轨道就小一圈", fs=8.6, color=fs.MUTED, ha="left")
+    fs.label(ax, 0.095, 0.052, "约束越来越强，能说的话越来越具体", fs=8.2,
+             color=fs.MUTED, ha="left")
 
-    return fs.save(fig, "theory", "ch08", "evidence-chain")
+    fs.save(fig, "theory", "ch08", "ladder")
 
 
-def fig_limits():
-    """图 8-2：三条硬限制的示意（总体最优／有损观测／边缘不匹配）。"""
-    rng = np.random.default_rng(8)
-    fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.55))
+# ---------------------------------------------------------------- 图 8-3
+def fig_whitening():
+    fam = []
+    for th, sa, sb in [(0, 1.46, 0.72), (50, 1.50, 0.60), (100, 1.40, 0.82),
+                       (145, 1.48, 0.74)]:
+        R = rot(np.deg2rad(th))
+        S = np.array([[sa, 0.0], [0.0, sb]])
+        fam.append(R @ S @ R.T)
 
-    # ---------- (a) 总体最优与有限样本 ----------
-    ax = axes[0]
-    x = np.linspace(0.02, 1.0, 200)
-    lstar = 0.20
-    L = lstar + 0.72 * np.exp(-3.0 * x)
-    ax.plot(x, L, color=fs.BLUE, lw=1.6, zorder=3)
-    ax.axhline(lstar, color=fs.ACCENT, lw=1.0, ls=(0, (4, 3)), zorder=2)
-    ax.set_xlim(0, 1.12); ax.set_ylim(0, 1.0)
-    ax.set_xticks([]); ax.set_yticks([])
-    fs.clean(ax, spines=("left", "bottom"))
+    fig = plt.figure(figsize=(6.7, 3.00))
 
-    xm = 0.42
-    Lm = lstar + 0.72 * np.exp(-3.0 * xm)
-    ax.scatter([xm], [Lm], s=34, color=fs.INK, zorder=5, edgecolor="white", linewidth=1.0)
-    ax.annotate("训练停在这里", xy=(xm, Lm), xytext=(0.30, 0.70),
-                fontsize=7.6, color=fs.INK,
-                arrowprops=dict(arrowstyle="-", color=fs.MUTED, lw=0.8,
-                                connectionstyle="arc3,rad=0.18"))
-    ax.annotate("总体最优", xy=(0.90, lstar), xytext=(0.52, 0.085),
-                fontsize=7.8, color=fs.ACCENT,
-                arrowprops=dict(arrowstyle="-", color=fs.ACCENT, lw=0.8,
-                                connectionstyle="arc3,rad=-0.12"))
-    fs.label(ax, 0.52, -0.10, "样本数", fs=7.6, color=fs.MUTED)
-    fs.label(ax, -0.06, 0.50, "损失", fs=7.6, color=fs.MUTED, rotation=90)
-    ax.set_title("(a) 定理说的是那条虚线", fontsize=8.8, color=fs.INK, pad=6)
+    axa = fig.add_axes([0.020, 0.185, 0.440, 0.695])
+    frame(axa, lim=1.62)
+    for G in fam:
+        E = ellipse_of(G)
+        axa.plot(E[:, 0], E[:, 1], color=fs.FAINT, lw=0.8, alpha=0.55, zorder=2)
+    E = ellipse_of(fam[0])
+    axa.plot(E[:, 0], E[:, 1], color=fs.BLUE, lw=1.3, alpha=0.95, zorder=3)
+    fs.label(axa, 0.0, 1.505, "(a) 白化之前", fs=9.8, color=fs.BLUE)
+    fs.label(axa, 0.0, -1.545, "每种椭圆形状都对应一个最优解", fs=8.4, color=fs.MUTED)
 
-    # ---------- (b) 单射与有损 ----------
-    ax = axes[1]
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
-    ax.set_title("(b) 有损渲染", fontsize=8.8, color=fs.INK, pad=6)
+    axb = fig.add_axes([0.540, 0.185, 0.440, 0.695])
+    frame(axb, lim=1.62)
+    axb.add_patch(Circle((0, 0), 1.0, fill=False, ec=fs.GREEN, lw=1.6, zorder=3))
+    for a in (0, 62):
+        axb.plot([0, np.cos(np.deg2rad(a))], [0, np.sin(np.deg2rad(a))],
+                 color=fs.GREEN, lw=0.9, alpha=0.55, ls=(0, (2, 2)), zorder=2)
+    t = np.deg2rad(np.linspace(0, 62, 40))
+    axb.plot(0.45 * np.cos(t), 0.45 * np.sin(t), color=fs.GREEN, lw=0.8, alpha=0.7,
+             zorder=2)
+    axb.annotate("", xy=(0.45 * np.cos(np.deg2rad(62)), 0.45 * np.sin(np.deg2rad(62))),
+                 xytext=(0.45 * np.cos(np.deg2rad(52)), 0.45 * np.sin(np.deg2rad(52))),
+                 arrowprops=dict(arrowstyle="-|>", color=fs.GREEN, lw=0.9,
+                                 mutation_scale=7))
+    fs.label(axb, 0.30, 0.30, r"$\theta$", fs=9.6, color=fs.GREEN)
+    fs.label(axb, 0.0, 1.505, "(b) 白化之后", fs=9.8, color=fs.GREEN)
+    fs.label(axb, 0.0, -1.545, "只剩旋转，而圆转过去还是圆", fs=8.4, color=fs.MUTED)
 
-    def state(xx, yy, txt):
-        ax.add_patch(Circle((xx, yy), 0.052, facecolor="white", edgecolor=fs.INK,
-                            lw=1.1, zorder=4))
-        fs.label(ax, xx, yy, txt, fs=9.0)
+    fs.save(fig, "theory", "ch08", "whitening")
 
-    def obs(xx, yy, txt):
-        ax.add_patch(Rectangle((xx - 0.046, yy - 0.046), 0.092, 0.092, facecolor="white",
-                               edgecolor=fs.BLUE, lw=1.1, zorder=4))
-        fs.label(ax, xx, yy, txt, fs=8.6, color=fs.BLUE)
 
-    # 左：单射
-    state(0.10, 0.735, "$z_1$"); state(0.10, 0.345, "$z_2$")
-    obs(0.315, 0.735, "$x_1$"); obs(0.315, 0.345, "$x_2$")
-    fs.arrow(ax, (0.155, 0.735), (0.264, 0.735), color=fs.FAINT, lw=1.0, ms=7)
-    fs.arrow(ax, (0.155, 0.345), (0.264, 0.345), color=fs.FAINT, lw=1.0, ms=7)
-    fs.label(ax, 0.213, 0.545, "单射", fs=7.6, color=fs.MUTED)
+# ---------------------------------------------------------------- 图 8-4
+def fig_identifiability():
+    fig = plt.figure(figsize=(7.0, 3.30))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
 
-    # 右：有损
-    state(0.62, 0.735, "$z_1$"); state(0.62, 0.345, "$z_2$")
-    obs(0.905, 0.540, "$x$")
-    fs.arrow(ax, (0.675, 0.728), (0.858, 0.578), color=fs.ACCENT, lw=1.0, ms=7)
-    fs.arrow(ax, (0.675, 0.352), (0.858, 0.502), color=fs.ACCENT, lw=1.0, ms=7)
-    fs.label(ax, 0.762, 0.545, "并成一个", fs=7.6, color=fs.ACCENT)
-    fs.label(ax, 0.50, 0.080, "两个状态在同一个模态里长得一样", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.030, 0.950, "生成过程的假设", fs=9.2, color=fs.MUTED, ha="left")
+    fs.label(ax, 0.985, 0.950, "对最优表征的结论", fs=9.2, color=fs.MUTED, ha="right")
 
-    # ---------- (c) 边缘不相等 ----------
-    ax = axes[2]
-    p1 = np.array([0.26, 0.20, 0.16, 0.14, 0.12, 0.12])
-    p2 = np.array([0.22, 0.24, 0.10, 0.16, 0.19, 0.09])
-    xs = np.arange(6)
-    ax.bar(xs, p1, width=0.62, color=fs.BLUE, alpha=0.85,
-           bottom=0.56, zorder=3, linewidth=0)
-    ax.bar(xs, p2, width=0.62, color=fs.ACCENT, alpha=0.85,
-           bottom=0.44 - p2, zorder=3, linewidth=0)
-    ax.axhline(0.56, color=fs.MUTED, lw=0.7)
-    ax.axhline(0.44, color=fs.MUTED, lw=0.7)
-    ax.set_xlim(-1.45, 5.6); ax.set_ylim(0, 1.0)
-    ax.set_xticks([]); ax.set_yticks([])
-    fs.clean(ax, spines=())
-    fs.label(ax, -1.34, 0.695, "图像", fs=7.8, color=fs.BLUE, ha="left")
-    fs.label(ax, -1.34, 0.285, "文本", fs=7.8, color=fs.ACCENT, ha="left")
-    ax.annotate("同一条边质量不同", xy=(2.0, 0.665), xytext=(2.05, 0.925),
-                fontsize=7.6, color=fs.INK,
-                arrowprops=dict(arrowstyle="-", color=fs.MUTED, lw=0.8))
-    fs.label(ax, 2.0, 0.075, "边缘同分布是定理一的第三条前提", fs=7.6, color=fs.MUTED)
-    ax.set_title("(c) 两个模态的边缘", fontsize=8.8, color=fs.INK, pad=6)
+    hyps = [
+        "内容与风格独立\n$p(c,s)=p(c)\\,p(s)$",
+        "生成过程单射\n$g$ 不把两个状态粘在一起",
+        "增强只作用于风格\n$g(c,a(s))=T_a\\,g(c,s)$",
+        "增强覆盖每个观测的邻域\n$T_a$ 局部可逆，正样本足够密",
+    ]
+    ys = [0.785, 0.585, 0.385, 0.185]
+    for h, y in zip(hyps, ys):
+        fs.box(ax, 0.030, y - 0.070, 0.395, 0.140, h, fc="#F8FAFC", ec=fs.BLUE,
+               fs=8.8, lw=1.0)
 
-    fig.subplots_adjust(left=0.045, right=0.985, top=0.86, bottom=0.05, wspace=0.16)
-    return fs.save(fig, "theory", "ch08", "three-limits")
+    cons = [
+        "表征只依赖内容\n风格方向被丢弃",
+        "内容只定到可逆线性变换\n不是旋转，也不是逐点",
+    ]
+    cys = [0.685, 0.385]
+    for c, y in zip(cons, cys):
+        fs.box(ax, 0.570, y - 0.082, 0.395, 0.164, c, fc="#FFFDF7", ec=fs.ACCENT,
+               fs=9.2, lw=1.1)
+
+    ax.plot([0.455, 0.455], [0.125, 0.845], color=fs.FAINT, lw=1.1, zorder=1)
+    ax.plot([0.455, 0.478], [0.125, 0.125], color=fs.FAINT, lw=1.1, zorder=1)
+    ax.plot([0.455, 0.478], [0.845, 0.845], color=fs.FAINT, lw=1.1, zorder=1)
+    fs.arrow(ax, (0.472, 0.685), (0.565, 0.685), color=fs.INK, lw=1.2, ms=9)
+    fs.arrow(ax, (0.472, 0.385), (0.565, 0.385), color=fs.INK, lw=1.2, ms=9)
+    fs.label(ax, 0.512, 0.622, "总体最优", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.512, 0.322, "无穷多增强", fs=7.6, color=fs.MUTED)
+
+    fs.label(ax, 0.030, 0.052, "示意图，条件与结论按 von Kügelgen 等 2021 的陈述概括，不含数值。",
+             fs=8.0, color=fs.MUTED, ha="left")
+
+    fs.save(fig, "theory", "ch08", "identifiability")
 
 
 if __name__ == "__main__":
-    fig_chain()
-    fig_limits()
-
-    # 正文引用的两个参数量，由本脚本算出
-    for da, db in ((768, 384), (5120, 384)):
-        print(f"{da}x{db}: {da * db - db * (db + 1) // 2:,} 个参数")
+    fig_equivalence()
+    fig_ladder()
+    fig_whitening()
+    fig_identifiability()

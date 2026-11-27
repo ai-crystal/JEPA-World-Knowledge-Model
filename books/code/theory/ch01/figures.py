@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""第 1 章插图：三条选择性压力与一次测量、校准前后的相关系数、结构-几何 2x2 框架。"""
+"""第 1 章插图：三条选择性压力与一次测量、校准前后的相关系数、结构-几何 2x2 框架、
+互近邻的置换零分布、三个度量的名次一致性。"""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "common"))
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import figstyle as fs
@@ -148,7 +150,133 @@ def fig_structure_geometry():
     return fs.save(fig, "theory", "ch01", "structure-geometry")
 
 
+def fig_null_dist():
+    """互近邻在 n=1024、k=10 下的置换零分布，以及观测值 0.16 落在哪里。
+
+    零分布直接由随机高斯表征算出来：X 与 Y 各 1024 行 768 列，互不相关，
+    把 Y 的行置换 K=200 次，每次重算两边的 k 近邻集合的重合比例。
+    """
+    rng = np.random.default_rng(20240)
+    n, k, d, K = 1024, 10, 768, 200
+    X = rng.standard_normal((n, d))
+    Y = rng.standard_normal((n, d))
+
+    def knn_sets(P):
+        G = P @ P.T
+        np.fill_diagonal(G, -np.inf)
+        idx = np.argpartition(-G, k, axis=1)[:, :k]
+        return [set(row.tolist()) for row in idx]
+
+    NX = knn_sets(X)
+    null = []
+    for _ in range(K):
+        NY = knn_sets(Y[rng.permutation(n)])
+        null.append(np.mean([len(NX[i] & NY[i]) / k for i in range(n)]))
+    null = np.asarray(null)
+
+    s_obs = 0.16                      # Huh 等人跨模态的最高读数
+    mu0 = k / (n - 1)                 # 命题 4.2 的零基线
+    comb = np.sort(np.concatenate([null, [s_obs]]))
+    tau = comb[int(np.ceil(0.95 * (K + 1))) - 1]
+    sd = null.std(ddof=1)
+    print("null mean %.5f  sd %.5f  tau %.5f  (obs-mean)/sd %.1f"
+          % (null.mean(), sd, tau, (s_obs - null.mean()) / sd))
+
+    fig = plt.figure(figsize=(6.9, 3.65))
+    ax1 = fig.add_axes([0.098, 0.605, 0.878, 0.360])
+    ax2 = fig.add_axes([0.098, 0.145, 0.878, 0.290])
+
+    # (a) 零分布本体
+    ax1.hist(null, bins=26, color=fs.BLUE, alpha=0.28, edgecolor=fs.BLUE, linewidth=0.7,
+             zorder=2)
+    ax1.axvline(mu0, color=fs.MUTED, lw=1.0, ls=(0, (5, 3)), zorder=3)
+    ax1.axvline(tau, color=fs.ACCENT, lw=1.2, zorder=3)
+    ax1.set_xlim(0.005, 0.0155)
+    ax1.set_ylim(0, 44)
+    fs.clean(ax1, spines=("left", "bottom"))
+    ax1.set_ylabel("置换次数", fontsize=8.4, color=fs.MUTED, labelpad=4)
+    ax1.tick_params(axis="both", labelsize=8.0, colors=fs.MUTED, length=3)
+    ax1.set_xticks([0.006, 0.008, 0.010, 0.012, 0.014])
+    fs.label(ax1, 0.0055, 41, "(a)", fs=9.2, color=fs.MUTED, ha="left")
+    fs.label(ax1, mu0 + 0.00012, 33, "$k/(n-1)=0.0098$", fs=8.2, color=fs.MUTED, ha="left")
+    fs.label(ax1, tau + 0.00015, 24, "$\\tau_\\alpha$（$\\alpha=0.05$）", fs=8.2,
+             color=fs.ACCENT, ha="left")
+    fs.label(ax1, 0.0154, 41, "$n=1024$，$k=10$，$K=200$", fs=8.0, color=fs.MUTED, ha="right")
+    fs.label(ax1, 0.0154, 12, "观测值 0.16 远在右侧轴外", fs=8.2, color=fs.ACCENT, ha="right")
+
+    # (b) 同一条数轴上的位置关系
+    ax2.set_xlim(-0.004, 0.182)
+    ax2.set_ylim(-1.05, 1.05)
+    ax2.axis("off")
+    fs.arrow(ax2, (-0.002, 0.0), (0.181, 0.0), color=fs.FAINT, lw=1.0, ms=7)
+    for t in (0.0, 0.05, 0.10, 0.15):
+        ax2.plot([t, t], [-0.10, 0.10], color=fs.FAINT, lw=0.9)
+        fs.label(ax2, t, -0.30, "%.2f" % t, fs=7.8, color=fs.MUTED)
+    ax2.add_patch(Rectangle((null.min(), -0.34), null.max() - null.min(), 0.68,
+                            facecolor=fs.BLUE, alpha=0.16, edgecolor="none", zorder=1))
+    fs.label(ax2, 0.021, 0.52, "零分布全部挤在这一段", fs=8.2, color=fs.BLUE, ha="left")
+    fs.arrow(ax2, (0.021, 0.44), (null.max() + 0.001, 0.10), color=fs.BLUE, lw=0.9, ms=6)
+    ax2.plot([s_obs, s_obs], [-0.36, 0.36], color=fs.ACCENT, lw=1.6, zorder=3)
+    ax2.scatter([s_obs], [0.0], s=26, facecolor=fs.ACCENT, edgecolor="white",
+                linewidth=0.8, zorder=4)
+    fs.label(ax2, s_obs - 0.004, 0.62, "观测值 0.16", fs=9.0, color=fs.ACCENT, ha="right")
+    fs.label(ax2, s_obs - 0.004, 0.30, "约 %.0f 个零分布标准差之外" % ((s_obs - null.mean()) / sd),
+             fs=7.8, color=fs.MUTED, ha="right")
+    fs.label(ax2, 0.176, -0.62, "互近邻分数", fs=8.0, color=fs.MUTED, ha="right")
+    fs.label(ax2, -0.004, 0.62, "(b)", fs=9.2, color=fs.MUTED, ha="right")
+    return fs.save(fig, "theory", "ch01", "null-dist")
+
+
+def fig_metric_agree():
+    """三个度量对同一批 204 对模型给出的名次有多一致。
+
+    数据是模拟的：每一对模型有一个潜在的能力值，三个分数各自与它的相关系数
+    按论文报告的校准后数值设定（CKA 0.45、Procrustes 0.39、mKNN 0.85），
+    其余为独立噪声。图上标的是样本名次的 Spearman 相关，只表示形状。
+    """
+    rng = np.random.default_rng(207)
+    m = 204
+    cap = rng.standard_normal(m)
+    cap = (cap - cap.mean()) / cap.std()
+
+    def draw(rho):
+        e = rng.standard_normal(m)
+        e = (e - e.mean()) / e.std()
+        return rho * cap + np.sqrt(1.0 - rho ** 2) * e
+
+    scores = {"CKA": draw(0.45), "Procrustes": draw(0.39), "mKNN": draw(0.85)}
+    ranks = {key: np.argsort(np.argsort(v)) + 1.0 for key, v in scores.items()}
+
+    pairs = [("mKNN", "CKA"), ("mKNN", "Procrustes"), ("CKA", "Procrustes")]
+    fig = plt.figure(figsize=(7.1, 2.95))
+    for i, (a, b) in enumerate(pairs):
+        ax = fig.add_axes([0.088 + i * 0.312, 0.175, 0.238, 0.735])
+        rho = float(np.corrcoef(ranks[a], ranks[b])[0, 1])
+        ax.plot([-8, m + 9], [-8, m + 9], color=fs.FAINT, lw=0.9, ls=(0, (4, 3)), zorder=1)
+        ax.scatter(ranks[a], ranks[b], s=7.5, color=fs.PALETTE[i], alpha=0.45,
+                   linewidth=0, zorder=2)
+        ax.set_xlim(-6, m + 6)
+        ax.set_ylim(-6, m + 6)
+        ax.set_xticks([1, 100, 204])
+        ax.set_yticks([1, 100, 204])
+        fs.clean(ax, spines=("left", "bottom"))
+        ax.tick_params(labelsize=7.8, colors=fs.MUTED, length=2.5)
+        ax.set_xlabel("%s 名次" % a, fontsize=8.2, color=fs.MUTED, labelpad=3)
+        ax.set_ylabel("%s 名次" % b, fontsize=8.2, color=fs.MUTED, labelpad=3)
+        ax.text(0.955, 0.055, r"$\rho_S=%.2f$" % rho, transform=ax.transAxes,
+                fontsize=8.6, color=fs.PALETTE[i], ha="right", va="bottom",
+                bbox=dict(boxstyle="round,pad=0.28", facecolor="white",
+                          edgecolor="none", alpha=0.88), zorder=6)
+        ax.text(0.045, 0.945, "(%s)" % "abc"[i], transform=ax.transAxes,
+                fontsize=8.6, color=fs.MUTED, ha="left", va="top",
+                bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
+                          edgecolor="none", alpha=0.85), zorder=6)
+    return fs.save(fig, "theory", "ch01", "metric-agree")
+
+
 if __name__ == "__main__":
     fig_three_pressures()
     fig_calibrated()
     fig_structure_geometry()
+    fig_null_dist()
+    fig_metric_agree()

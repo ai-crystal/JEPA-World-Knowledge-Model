@@ -4,7 +4,7 @@
 
 同一个网络、同一批数据，只改动“什么算作正样本”，对齐水平可以差出一倍；白化之后还要管形状，SIGReg 把这件事变成一条可以证明的目标函数。这一册讲的是工程：目标函数怎么选，超参怎么配，塌缩怎么早发现，视图该怎么构造，指标该怎么读。
 
-共 9 章 · 83 页
+共 12 章 · 141 页
 
 [从第 1 章开始](chapters/ch01.md)　·　<a href="../../output/v2-practice.pdf" target="_blank" rel="noopener" data-router-ignore>下载本册 PDF</a>
 
@@ -19,7 +19,10 @@
 - [第 6 章　V-JEPA 的两个版本](chapters/ch06.md)
 - [第 7 章　世界模型的工程](chapters/ch07.md)
 - [第 8 章　好视图与坏视图](chapters/ch08.md)
-- [第 9 章　对齐的度量与规模](chapters/ch09.md)
+- [第 9 章　数据管线](chapters/ch09.md)
+- [第 10 章　训练系统](chapters/ch10.md)
+- [第 11 章　调参与失败诊断](chapters/ch11.md)
+- [第 12 章　对齐的度量与规模](chapters/ch12.md)
 
 ### 附录
 

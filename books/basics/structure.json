@@ -17,7 +17,19 @@
       "no": "第三篇",
       "title": "第三篇  世界与地图",
       "page": "front/part3.md",
-      "chapters": ["ch07.md", "ch08.md", "ch09.md"]
+      "chapters": ["ch07.md", "ch08.md"]
+    },
+    {
+      "no": "第四篇",
+      "title": "第四篇  把想法变成系统",
+      "page": "front/part4.md",
+      "chapters": ["ch09.md", "ch10.md", "ch11.md", "ch12.md"]
+    },
+    {
+      "no": "第五篇",
+      "title": "第五篇  一张地图",
+      "page": "front/part5.md",
+      "chapters": ["ch13.md"]
     }
   ],
   "appendices": ["appA.md"],

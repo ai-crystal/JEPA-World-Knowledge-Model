@@ -159,7 +159,100 @@ def fig_imagine():
     return fs.save(fig, "basics", "ch07", "dreamer-imagination")
 
 
+def fig_three_world_models():
+    """图 7-4 三类世界模型的输入、状态、输出。
+
+    World Models 的 32 维与 64×64 见 papers/1803.10122；
+    Genie 的 11B 参数与 3 万小时视频见 papers/2402.15391；
+    RSSM 的 h_t 与 z_t 见 papers/2301.04104 式 (1)。
+    """
+    fig = plt.figure(figsize=(6.9, 4.05))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+
+    cols = [(0.185, 0.200), (0.425, 0.195), (0.655, 0.215)]
+    for (x, w), hd in zip(cols, ["输入", "状态", "输出"]):
+        fs.label(ax, x + w / 2, 0.930, hd, fs=9.6, color=fs.MUTED, weight="bold")
+    # 列头下面的短横线
+    for x, w in cols:
+        ax.plot([x + 0.02, x + w - 0.02], [0.900, 0.900], color=fs.GRID, lw=1.0, zorder=1)
+
+    h = 0.200
+    rows = [
+        (0.655, "像素生成式", "World Models\nGenie", "#FDF6EC", fs.GOLD),
+        (0.395, "潜空间预测式", "JEPA\nV-JEPA 2", "#F2F6FF", fs.BLUE),
+        (0.135, "混合式", "Dreamer\nRSSM", "#F7F3FD", fs.PURPLE),
+    ]
+    texts = [
+        ["观测帧 $x_t$\n加动作 $a_t$", "像素本身\n或视觉 token", "下一帧画面 $x_{t+1}$\n能播给人看"],
+        ["观测帧 $x_t$\n加动作 $a_t$", "特征向量 $s_t$\n编码器输出", "预测向量 $\\hat{s}_{t+1}$\n不解码回画面"],
+        ["观测帧 $x_t$\n加动作 $a_t$", "$h_t$ 与 $z_t$\n确定一半＋随机一半", "推进 $T$ 步的潜状态\n训练时才解码"],
+    ]
+    for (y, name, note, fc, ec), tx in zip(rows, texts):
+        ax.text(0.018, y + h / 2 + 0.026, name, fontsize=9.4, color=ec,
+                weight="bold", ha="left", va="center", zorder=5)
+        ax.text(0.018, y + h / 2 - 0.038, note, fontsize=8.0, color=fs.MUTED,
+                ha="left", va="center", linespacing=1.45, zorder=5)
+        for (x, w), t in zip(cols, tx):
+            fs.box(ax, x, y, w, h, t, fc=fc, ec=ec, fs=8.6, lw=1.1)
+        yc = y + h / 2
+        fs.arrow(ax, (cols[0][0] + cols[0][1] + 0.008, yc), (cols[1][0] - 0.008, yc),
+                 color=fs.MUTED, lw=1.0, ms=8)
+        fs.arrow(ax, (cols[1][0] + cols[1][1] + 0.008, yc), (cols[2][0] - 0.008, yc),
+                 color=fs.MUTED, lw=1.0, ms=8)
+    return fs.save(fig, "basics", "ch07", "three-world-models")
+
+
+def fig_rollout_error():
+    """图 7-5 误差随时域增长（示意，无实测数值）。
+
+    只画出方向与三条曲线的相对高低，纵轴不标刻度；
+    16 步取自 papers/2301.04104 的想象长度 T = 16。
+    """
+    t = np.arange(0.0, 41.0, 0.25)
+    pix = 0.06 + 0.92 * (1.0 - np.exp(-t / 5.5))
+    lat = 0.05 + 0.62 * (1.0 - np.exp(-t / 11.0))
+    spread = 0.055 * (1.0 - np.exp(-t / 9.0))
+    real = np.full_like(t, 0.035)
+
+    fig, ax = plt.subplots(figsize=(6.9, 3.9))
+    fig.subplots_adjust(left=0.105, right=0.985, bottom=0.150, top=0.845)
+    fs.clean(ax, spines=("left", "bottom"))
+    ax.set_xlim(-1.5, 57.0)
+    ax.set_ylim(0.0, 1.16)
+    ax.set_yticks([])
+    ax.set_xticks([0, 10, 20, 30, 40])
+    ax.tick_params(axis="x", labelsize=9)
+    ax.set_xlabel("从当前状态往前推的步数", fontsize=9.4, color=fs.INK, labelpad=6)
+    ax.set_ylabel("预测误差（示意，不标刻度）", fontsize=9.4, color=fs.INK, labelpad=8)
+
+    ax.fill_between(t, lat - spread, lat + spread, color=fs.BLUE, alpha=0.12,
+                    linewidth=0, zorder=1)
+    ax.plot(t, pix, color=fs.GOLD, lw=1.9, zorder=4)
+    ax.plot(t, lat, color=fs.BLUE, lw=1.9, zorder=4)
+    ax.plot(t, real, color=fs.GREEN, lw=1.6, ls=(0, (4, 2.5)), zorder=4)
+
+    # 线端文字，放在坐标区右侧的留白里
+    ax.text(42.0, pix[-1] + 0.005, "像素重建", fontsize=9.0, color=fs.GOLD,
+            ha="left", va="center")
+    ax.text(42.0, lat[-1] + 0.005, "潜空间预测", fontsize=9.0, color=fs.BLUE,
+            ha="left", va="center")
+    ax.text(42.0, real[-1] + 0.045, "真实执行", fontsize=9.0, color=fs.GREEN,
+            ha="left", va="center")
+
+    # 16 步：Dreamer 的想象长度
+    ax.axvline(16, color=fs.FAINT, lw=0.9, ls=(0, (5, 3)), zorder=2)
+    ax.text(16.9, 1.085, "Dreamer 的想象长度 16 步", fontsize=8.4, color=fs.MUTED,
+            ha="left", va="center")
+
+    fig.text(0.105, 0.955, "示意曲线：只表示误差随时域增长的方向与三条线的相对高低，"
+             "刻度无数值意义", fontsize=8.3, color=fs.MUTED, ha="left", va="center")
+    return fs.save(fig, "basics", "ch07", "rollout-error")
+
+
 if __name__ == "__main__":
     fig_loop()
     fig_temperature()
     fig_imagine()
+    fig_three_world_models()
+    fig_rollout_error()

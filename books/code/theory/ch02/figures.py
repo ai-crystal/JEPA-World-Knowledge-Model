@@ -235,6 +235,151 @@ def fig_spectral_embedding():
     return fs.save(fig, "theory", "ch02", "spectral-embedding")
 
 
+
+# ---------------------------------------------------------------- 图 2-3
+def fig_spectrum_map():
+    """K 的特征值与 L = I - K 的特征值落在直线 lambda = 1 - mu 上。"""
+    xy, p, Pi = build_toy_world()
+    K = normalized_adjacency(Pi, p)
+    w, V = spectrum(K)
+    lam = 1.0 - w
+    print("  图 2-3  mu", np.round(w[:6], 4), "lambda", np.round(lam[:6], 4))
+
+    fig = plt.figure(figsize=(6.5, 3.55))
+    ax = fig.add_axes([0.125, 0.155, 0.845, 0.795])
+
+    ax.axvspan(-1.12, 0.0, facecolor=fs.GRID, alpha=0.55, zorder=0)
+    ax.axhline(1.0, color=fs.FAINT, lw=0.7, ls=(0, (3, 3)), zorder=1)
+    ax.axvline(0.0, color=fs.FAINT, lw=0.7, ls=(0, (3, 3)), zorder=1)
+    ax.plot([-1.0, 1.0], [2.0, 0.0], color=fs.INK, lw=1.1, zorder=2)
+
+    # 12 个点全部画出，只给前四个加标注
+    ax.scatter(w, lam, s=20, color=fs.FAINT, zorder=3, edgecolor="none")
+    idx = [0, 1, 2, 3]
+    cols = [fs.BLUE, fs.ACCENT, fs.ACCENT, fs.ACCENT]
+    offs = {0: (9, -6, "left"), 1: (9, 14, "left"),
+            2: (-12, -15, "right"), 3: (12, -18, "left")}
+    for i, c in zip(idx, cols):
+        ax.scatter([w[i]], [lam[i]], s=38, color=c, zorder=4,
+                   edgecolor="white", linewidth=0.7)
+        dx, dy, ha = offs[i]
+        txt = "$\\mu_0$（常数）" if i == 0 else "$\\mu_%d,\\ \\lambda_%d$" % (i, i)
+        ax.annotate(txt, (w[i], lam[i]), textcoords="offset points",
+                    xytext=(dx, dy), fontsize=7.8, color=c, ha=ha, zorder=5)
+
+    ax.annotate("其余 $8$ 个", xy=(w[-1], lam[-1]), xytext=(-0.88, 1.52),
+                fontsize=7.6, color=fs.MUTED, ha="center",
+                arrowprops=dict(arrowstyle="-", color=fs.FAINT, lw=0.7,
+                                shrinkA=2, shrinkB=4))
+
+    # 谱间隙
+    ax.annotate("", xy=(w[3], 1.0), xytext=(w[2], 1.0),
+                arrowprops=dict(arrowstyle="<->", color=fs.GREEN, lw=0.9,
+                                shrinkA=0, shrinkB=0))
+    fs.label(ax, 0.5 * (w[2] + w[3]) + 0.05, 1.05, "间隙 $0.294$", fs=7.8,
+             color=fs.GREEN, va="bottom", ha="left")
+
+    fs.label(ax, 0.70, 1.80, "$\\lambda = 1-\\mu$", fs=9.4, color=fs.INK)
+    fs.label(ax, -1.06, 0.34, "$\\mu$ 为负时 $\\lambda$ 超过 $1$", fs=7.8,
+             color=fs.MUTED, ha="left")
+
+    ax.set_xlim(-1.12, 1.30)
+    ax.set_ylim(-0.16, 2.12)
+    ax.set_xticks([-1.0, -0.5, 0.0, 0.5, 1.0])
+    ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])
+    ax.tick_params(labelsize=8.0)
+    ax.set_xlabel("$K$ 的特征值 $\\mu$", fontsize=9.2)
+    ax.set_ylabel("$L$ 的特征值 $\\lambda$", fontsize=9.2)
+    fs.clean(ax)
+    return fs.save(fig, "theory", "ch02", "spectrum-map")
+
+
+# ---------------------------------------------------------------- 图 2-4
+def fig_small_world_3d():
+    """12 状态小世界的前三个谱坐标：三维里是一张马鞍面，俯视是棋盘。"""
+    xy, p, Pi = build_toy_world()
+    n = len(p)
+    K = normalized_adjacency(Pi, p)
+    w, V = spectrum(K)
+    Phi = V[:, 1:4] / np.sqrt(p)[:, None]
+
+    d2 = ((xy[:, None, :] - xy[None, :, :]) ** 2).sum(-1)
+    print("  图 2-4  前三维坐标范围",
+          np.round([Phi.min(0), Phi.max(0)], 3).tolist())
+
+    fig = plt.figure(figsize=(6.9, 3.45))
+    ax = fig.add_axes([0.0, 0.0, 0.585, 0.98], projection="3d")
+    axb = fig.add_axes([0.615, 0.155, 0.365, 0.735])
+
+    # ---- 格子边（正交相邻）与斜边分开画
+    for i in range(n):
+        for j in range(i + 1, n):
+            if d2[i, j] == 1.0:
+                ax.plot([Phi[i, 0], Phi[j, 0]], [Phi[i, 1], Phi[j, 1]],
+                        [Phi[i, 2], Phi[j, 2]], color=fs.BLUE, lw=0.7,
+                        alpha=0.35, zorder=1)
+    # ---- φ1-φ2 平面上的投影，作为参照
+    z0 = -1.85
+    for i in range(n):
+        for j in range(i + 1, n):
+            if d2[i, j] == 1.0:
+                ax.plot([Phi[i, 0], Phi[j, 0]], [Phi[i, 1], Phi[j, 1]], [z0, z0],
+                        color=fs.GRID, lw=0.7, zorder=0)
+        ax.plot([Phi[i, 0], Phi[i, 0]], [Phi[i, 1], Phi[i, 1]],
+                [z0, Phi[i, 2]], color=fs.GRID, lw=0.5, ls=(0, (2, 2)), zorder=0)
+    ax.scatter(Phi[:, 0], Phi[:, 1], np.full(n, z0), s=12, color=fs.FAINT,
+               edgecolor="none", depthshade=False, zorder=0)
+
+    sgn = np.sign(Phi[:, 2])
+    ax.scatter(Phi[:, 0], Phi[:, 1], Phi[:, 2], s=40,
+               color=[fs.ACCENT if s > 0 else fs.GREEN for s in sgn],
+               edgecolor="white", linewidth=0.6, depthshade=False, zorder=3)
+    ax.set_xlabel("$\\varphi_1$", fontsize=8.4, labelpad=-4)
+    ax.set_ylabel("$\\varphi_2$", fontsize=8.4, labelpad=-4)
+    ax.set_zlabel("$\\varphi_3$", fontsize=8.4, labelpad=-5)
+    ax.tick_params(labelsize=6.5, pad=-2)
+    ax.set_xticks([-1.0, 0.0, 1.0])
+    ax.set_yticks([-1.0, 0.0, 1.0])
+    ax.set_zticks([-1.0, 0.0, 1.0])
+    ax.set_zlim(-1.95, 1.72)
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis.pane.set_facecolor("white")
+        axis.pane.set_edgecolor(fs.GRID)
+    ax.grid(True)
+    ax.set_box_aspect((1.25, 1.0, 0.85))
+    ax.view_init(elev=19, azim=-63)
+    fig.text(0.285, 0.018, "(a) 前三个坐标", fontsize=8.6, ha="center")
+
+    # ---- 俯视：第三维只由前两维决定，符号是棋盘
+    for i in range(n):
+        for j in range(i + 1, n):
+            if d2[i, j] == 1.0:
+                axb.plot([Phi[i, 0], Phi[j, 0]], [Phi[i, 1], Phi[j, 1]],
+                         color=fs.BLUE, lw=0.7, alpha=0.30, zorder=1)
+    for s, c, lab in ((1, fs.ACCENT, "$\\varphi_3>0$"),
+                      (-1, fs.GREEN, "$\\varphi_3<0$")):
+        m = sgn == s
+        axb.scatter(Phi[m, 0], Phi[m, 1], s=50, color=c, edgecolor="white",
+                    linewidth=0.7, zorder=3, label=lab)
+    for i in range(n):
+        axb.annotate(str(i + 1), (Phi[i, 0], Phi[i, 1]), textcoords="offset points",
+                     xytext=(6.0, 4.5), fontsize=7.0, color=fs.MUTED, zorder=4)
+    axb.set_xlim(-2.05, 2.30)
+    axb.set_ylim(-2.30, 2.05)
+    axb.set_aspect("equal")
+    axb.set_xticks([])
+    axb.set_yticks([])
+    fs.clean(axb, spines=())
+    axb.legend(loc="lower center", fontsize=7.6, handletextpad=0.3, ncol=2,
+               bbox_to_anchor=(0.5, -0.16))
+    fs.label(axb, 0.05, 1.90, "$\\varphi_2$", fs=9.0, color=fs.MUTED)
+    fs.label(axb, 2.10, -0.02, "$\\varphi_1$", fs=9.0, color=fs.MUTED)
+    fs.label(axb, 0.10, -2.16, "(b) 按第三维的符号着色", fs=8.0)
+    return fs.save(fig, "theory", "ch02", "small-world")
+
+
 if __name__ == "__main__":
     fig_two_modalities()
     fig_spectral_embedding()
+    fig_spectrum_map()
+    fig_small_world_3d()

@@ -193,7 +193,153 @@ def fig_epps_pulley():
     return fs.save(fig, "practice", "ch04", "epps-pulley")
 
 
+# ---------------- 图 4-4 换一个目标分布 ----------------
+def fig_target_distributions():
+    rng = np.random.default_rng(31)
+    n = 1600
+    g = rng.normal(0.0, 1.0, size=(n, 2))
+    sph = rng.normal(0.0, 1.0, size=(n, 2))
+    sph = sph / np.linalg.norm(sph, axis=1, keepdims=True)
+    lap = rng.laplace(0.0, 1.0 / np.sqrt(2.0), size=(n, 2))
+
+    sets = [(g, "(a) 各向同性高斯", fs.BLUE),
+            (sph, "(b) 均匀球面（半径归一）", fs.GREEN),
+            (lap, "(c) 独立拉普拉斯", fs.ACCENT)]
+
+    fig = plt.figure(figsize=(7.0, 3.55))
+    gs = fig.add_gridspec(2, 3, height_ratios=[2.45, 1.0], hspace=0.46,
+                          wspace=0.22, left=0.05, right=0.985, top=0.905, bottom=0.115)
+    bins = np.linspace(0.0, 5.0, 60)
+    for j, (pts, title, col) in enumerate(sets):
+        ax = fig.add_subplot(gs[0, j])
+        ax.add_patch(Circle((0, 0), 1.0, fill=False, ec=fs.FAINT, lw=0.8,
+                            ls=(0, (3, 3)), zorder=1))
+        ax.scatter(pts[:, 0], pts[:, 1], s=2.2 if j == 1 else 3.6, color=col,
+                   alpha=0.55 if j == 1 else 0.40, linewidths=0, zorder=3)
+        ax.set_xlim(-3.9, 3.9); ax.set_ylim(-3.9, 3.9)
+        r_all = np.linalg.norm(pts, axis=1)
+        r_cv = r_all.std() / r_all.mean()
+        ax.set_aspect("equal")
+        ax.set_xticks([-2, 0, 2]); ax.set_yticks([-2, 0, 2])
+        ax.tick_params(labelsize=8, length=2.5, pad=2)
+        fs.clean(ax)
+        ax.set_title(title, fontsize=8.8, color=fs.INK, pad=5)
+
+        axr = fig.add_subplot(gs[1, j])
+        r = np.linalg.norm(pts, axis=1)
+        axr.hist(np.clip(r, 0, 5), bins=bins, density=True, color=col,
+                 alpha=0.32, edgecolor="none")
+        axr.axvline(r.mean(), color=fs.INK, lw=1.0, ls=(0, (4, 2.5)))
+        axr.set_xlim(0, 4.2); axr.set_ylim(0, None)
+        axr.set_yticks([])
+        axr.set_xticks([0, 2, 4])
+        axr.tick_params(labelsize=7.6, length=2.2, pad=2)
+        fs.clean(axr)
+        axr.set_xlabel("半径 ‖z‖", fontsize=8.0, labelpad=1.5)
+        ytop = axr.get_ylim()[1]
+        axr.text(4.05, 0.42 * ytop, f"变异系数 {r_cv:.2f}", fontsize=7.4,
+                 color=fs.MUTED, ha="right", va="center")
+        if j == 1:
+            axr.annotate("半径恒为 1", xy=(1.02, 0.72 * ytop),
+                         xytext=(1.75, 0.72 * ytop), fontsize=7.4,
+                         color=fs.MUTED, ha="left", va="center",
+                         arrowprops=dict(arrowstyle="-|>", color=fs.MUTED, lw=0.7,
+                                         mutation_scale=7))
+        print(f"  {title}: 半径均值 {r.mean():.3f} 标准差 {r.std():.3f} "
+              f"变异系数 {r.std() / r.mean():.3f}")
+
+    # 一维投影的超额峰度按解析式算，与上面的二维散点无关
+    for K in (2, 512):
+        k_sph = -6.0 / (K + 2.0)
+        print(f"  K={K}: 球面投影超额峰度 {k_sph:+.4f}，拉普拉斯 +3.0000，高斯 0")
+    return fs.save(fig, "practice", "ch04", "target-distributions")
+
+
+# ---------------- 图 4-5 EP 的功效与一致性 ----------------
+def _lap_unit(k):
+    return np.random.laplace(0.0, 1.0 / np.sqrt(2.0), size=k)
+
+
+def _contaminate(rng, e, k):
+    """真正的混合：每个样本以概率 e 取自拉普拉斯，否则取自标准正态。
+
+    两个成分的方差都是 1，所以混合后的方差仍是 1，白化看不出来。
+    """
+    mask = rng.random(k) < e
+    z = rng.normal(0.0, 1.0, size=k)
+    u = rng.laplace(0.0, 1.0 / np.sqrt(2.0), size=k)
+    return np.where(mask, u, z)
+
+
+def fig_ep_power():
+    rng = np.random.default_rng(4242)
+    sizes = [64, 128, 256, 512, 1024, 2048, 4096, 8192]
+    trials_null, trials_alt = 200, 60
+    eps_list = [0.20, 0.35, 0.50, 0.75]
+    cols = {0.20: fs.GREEN, 0.35: fs.BLUE, 0.50: fs.GOLD, 0.75: fs.ACCENT}
+
+    crit = {}
+    for N in sizes:
+        vals = [epps_pulley(rng.normal(0.0, 1.0, size=N)) for _ in range(trials_null)]
+        crit[N] = float(np.quantile(vals, 0.95))
+        print(f"  N={N}: 零假设下 EP 均值 {np.mean(vals):.2f}，95% 分位 {crit[N]:.2f}")
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.0, 3.05))
+
+    for e in eps_list:
+        pows = []
+        for N in sizes:
+            hit = 0
+            for _ in range(trials_alt):
+                if epps_pulley(_contaminate(rng, e, N)) > crit[N]:
+                    hit += 1
+            pows.append(hit / trials_alt)
+        ax1.plot(sizes, pows, color=cols[e], lw=1.5, marker="o", ms=3.0,
+                 label=f"污染 {int(e * 100)}%")
+        print(f"  污染 {int(e*100)}%: 功效 N=256 {pows[2]:.2f}，N=1024 {pows[4]:.2f}，"
+              f"N=8192 {pows[-1]:.2f}")
+    ax1.axhline(0.05, color=fs.FAINT, lw=0.9, ls=(0, (4, 3)), zorder=1)
+    ax1.text(7600, 0.062, "5% 水平", fontsize=7.6, color=fs.MUTED,
+             ha="right", va="bottom")
+    ax1.set_xscale("log", base=2)
+    ax1.set_xlabel("样本数 N")
+    ax1.set_ylabel("拒绝率（功效）")
+    ax1.set_ylim(-0.04, 1.06)
+    ax1.set_xticks(sizes)
+    ax1.set_xticklabels([str(s) for s in sizes], fontsize=7.2)
+    fs.clean(ax1, grid=True)
+    ax1.legend(loc="upper left", fontsize=7.8, handlelength=1.5,
+               borderaxespad=0.4)
+    ax1.set_title("(a) 检出率随样本数上升", fontsize=8.8, pad=5)
+
+    reps = 25
+    for e, name, col in [(0.0, "纯高斯（零假设）", fs.MUTED), (0.20, "污染 20%", fs.GREEN)]:
+        xs, ys = [], []
+        for N in sizes:
+            vals = [epps_pulley(rng.normal(0.0, 1.0, size=N) if e == 0.0
+                                else _contaminate(rng, e, N)) / N for _ in range(reps)]
+            xs.append(N); ys.append(np.mean(vals))
+        ax2.plot(xs, ys, color=col, lw=1.5, marker="s", ms=2.8, label=name)
+        print(f"  {name}: EP/N 在 N=64 时 {ys[0]:.2e}，N=8192 时 {ys[-1]:.2e}")
+    ax2.axhline(6.6e-4, color=fs.FAINT, lw=0.9, ls=(0, (4, 3)), zorder=1)
+    ax2.text(70, 8.4e-4, "真偏差 Δ", fontsize=7.6, color=fs.MUTED,
+             ha="left", va="bottom")
+    ax2.set_xscale("log", base=2); ax2.set_yscale("log")
+    ax2.set_xlabel("样本数 N")
+    ax2.set_ylabel("EP / N")
+    ax2.set_xticks(sizes)
+    ax2.set_xticklabels([str(s) for s in sizes], fontsize=7.2)
+    fs.clean(ax2, grid=True)
+    ax2.legend(loc="lower left", fontsize=7.8, handlelength=1.5, borderaxespad=0.4)
+    ax2.set_title("(b) 除以 N 之后：噪声衰减，偏差留下", fontsize=8.8, pad=5)
+
+    fig.subplots_adjust(wspace=0.30)
+    return fs.save(fig, "practice", "ch04", "ep-power")
+
+
 if __name__ == "__main__":
     fig_four_states()
     fig_slices()
     fig_epps_pulley()
+    fig_target_distributions()
+    fig_ep_power()

@@ -258,6 +258,183 @@ def fig_gap_stability():
     return fs.save(fig, "theory", "ch04", "gap-stability")
 
 
+# ---------------------------------------------------------------- 图 4-3
+# 主夹角与三种距离的关系。左侧是两组基按夹角配对，右侧把
+# 「子空间距离」「投影算子距离」「基底距离」三条曲线画在一起，
+# 说明常数里的 /2 是在哪一段上付掉的。
+def fig_subspace_angle():
+    from matplotlib.patches import Arc
+
+    fig = plt.figure(figsize=(7.0, 3.30))
+    axa = fig.add_axes([0.030, 0.120, 0.400, 0.820])
+    axb = fig.add_axes([0.590, 0.175, 0.385, 0.745])
+
+    # ---------------- (a) 两组基的配对与主夹角
+    th1, th2 = np.deg2rad(22.0), np.deg2rad(20.0)
+    O = np.array([0.0, 0.0])
+    u1, u2 = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+    v1 = np.array([np.cos(th1), np.sin(th1)])
+    v2 = np.array([np.sin(th2), np.cos(th2)])
+
+    for p1, col in ((u1, fs.BLUE), (u2, fs.BLUE), (v1, fs.ACCENT), (v2, fs.ACCENT)):
+        fs.arrow(axa, O, p1, color=col, lw=1.5, ms=9)
+    for p1, p2 in ((u1, v1), (u2, v2)):
+        axa.plot([p1[0], p2[0]], [p1[1], p2[1]], color=fs.FAINT, lw=0.9,
+                 ls=(0, (3, 2)), zorder=1)
+    axa.add_patch(Arc(O, 1.02, 1.02, theta1=0.0, theta2=22.0, color=fs.MUTED, lw=1.0, zorder=2))
+    axa.add_patch(Arc(O, 0.70, 0.70, theta1=70.0, theta2=90.0, color=fs.MUTED, lw=1.0,
+                      zorder=2))
+    fs.label(axa, 0.59, 0.115, r"$\theta_1$", fs=10.0, color=fs.INK)
+    fs.label(axa, 0.075, 0.455, r"$\theta_2$", fs=10.0, color=fs.INK)
+    fs.label(axa, 1.075, -0.075, r"$u_1$", fs=10.0, color=fs.BLUE)
+    fs.label(axa, -0.085, 1.055, r"$u_2$", fs=10.0, color=fs.BLUE)
+    fs.label(axa, 1.055, 0.455, r"$v_1$", fs=10.0, color=fs.ACCENT)
+    fs.label(axa, 0.395, 1.115, r"$v_2$", fs=10.0, color=fs.ACCENT)
+    fs.label(axa, 0.44, 0.80, r"$\Vert u_i-v_i\Vert^2=2-2\cos\theta_i$", fs=8.4,
+             color=fs.MUTED, ha="left")
+    fs.label(axa, -0.12, -0.235, "(a)", fs=9.0, color=fs.MUTED, ha="left")
+    axa.set_xlim(-0.30, 1.42)
+    axa.set_ylim(-0.30, 1.30)
+    axa.set_aspect("equal")
+    axa.axis("off")
+
+    # ---------------- (b) 三种距离随夹角的变化（k = 2，两个夹角相同）
+    t = np.linspace(0.0, np.pi / 2, 400)
+    sin_f = np.sqrt(2.0) * np.sin(t)          # ||sin Theta||_F
+    proj = 2.0 * np.sin(t)                    # ||P1 - P2||_F = sqrt(2) * 上式
+    basis = 2.0 * np.sqrt(1.0 - np.cos(t))    # ||V1 O - V2||_F = sqrt(4(1-cos))
+
+    axb.fill_between(np.rad2deg(t), sin_f, proj, color=fs.BLUE, alpha=0.10, lw=0)
+    axb.plot(np.rad2deg(t), proj, color=fs.FAINT, lw=1.3, ls=(0, (4, 3)), zorder=2)
+    axb.plot(np.rad2deg(t), basis, color=fs.ACCENT, lw=1.8, zorder=3)
+    axb.plot(np.rad2deg(t), sin_f, color=fs.BLUE, lw=1.5, zorder=4)
+    fs.label(axb, 5.0, 2.62, r"阴影带就是 $\sqrt{2}$ 倍的余量", fs=8.4, color=fs.MUTED,
+             ha="left", va="top")
+    axb.plot([90.0], [2.0], marker="o", ms=4.6, mfc="white", mec=fs.INK, mew=1.0, zorder=6)
+    axb.set_xlim(0.0, 96.0)
+    axb.set_ylim(0.0, 2.70)
+    axb.set_xticks([0, 30, 60, 90])
+    axb.set_yticks([0.0, 1.0, 2.0])
+    axb.set_xlabel("主夹角 $\\theta$（度）", fontsize=9.2, labelpad=5)
+    axb.set_ylabel("距离", fontsize=9.2, labelpad=3)
+    fs.clean(axb, grid=True)
+    axb.plot([], [], color=fs.BLUE, lw=1.5, label=r"$\Vert\sin\Theta\Vert_F$")
+    axb.plot([], [], color=fs.ACCENT, lw=1.8, label=r"$\Vert V_1\hat O-V_2\Vert_F$")
+    axb.plot([], [], color=fs.FAINT, lw=1.3, ls=(0, (4, 3)),
+             label=r"$\Vert P_1-P_2\Vert_F$")
+    axb.legend(loc="lower right", fontsize=7.8, handlelength=1.9, labelspacing=0.35,
+               borderaxespad=0.35, handletextpad=0.55)
+    fs.label(axb, 95.0, 2.62, "(b)", fs=9.0, color=fs.MUTED, ha="right", va="top")
+    print("  图 4-3  夹角-距离：theta=22° 时 basis %.4f  sinF %.4f  proj %.4f"
+          % (2 * np.sqrt(1 - np.cos(np.deg2rad(22.0))),
+             np.sqrt(2) * np.sin(np.deg2rad(22.0)), 2 * np.sin(np.deg2rad(22.0))))
+    return fs.save(fig, "theory", "ch04", "subspace-angle")
+
+
+# ---------------------------------------------------------------- 图 4-4
+# 误差与谱间隙的散点，以及 Sinkhorn 缩放之后的边缘误差。
+_MARGINAL_LOG = []
+
+
+def _sinkhorn_trace(M, p, itmax=60000, tol=1e-13):
+    """与 sinkhorn 同样的迭代，额外返回迭代次数与最终边缘误差。"""
+    a = np.ones(len(p))
+    Mo = M.copy()
+    np.fill_diagonal(Mo, 0.0)
+    Mo = Mo / Mo.sum()
+    it = 0
+    for it in range(itmax):
+        R = Mo * a[:, None] * a[None, :]
+        row = R.sum(1)
+        a = a * np.sqrt(p / row)
+        if np.abs(row - p).max() < tol:
+            break
+    R = Mo * a[:, None] * a[None, :]
+    return R, it + 1, float(np.abs(R.sum(1) - p).max())
+
+
+def _sinkhorn_recording(M, p, itmax=60000, tol=1e-13):
+    """把边缘误差顺便记下来，供图 4-4(b) 使用。"""
+    R, it, dev = _sinkhorn_trace(M, p, itmax, tol)
+    _MARGINAL_LOG.append((it, dev))
+    return R
+
+
+def fig_error_gap():
+    global sinkhorn
+    _MARGINAL_LOG.clear()
+    backup = sinkhorn
+    sinkhorn = _sinkhorn_recording
+    try:
+        rows = theorem2_trials(80)
+    finally:
+        sinkhorn = backup
+
+    err = np.array([r[0] for r in rows])
+    delta = np.array([r[5] for r in rows])
+    clus = np.array([r[2] for r in rows])
+    its = np.array([m[0] for m in _MARGINAL_LOG], float)
+    dev = np.array([m[1] for m in _MARGINAL_LOG], float)
+    lx, ly = np.log(delta), np.log(err)
+    sl, ic = np.polyfit(lx, ly, 1)
+    print("  图 4-4  误差与间隙：斜率 %.3f 相关 %.3f；Sinkhorn 迭代 %d-%d 中位 %d；"
+          " 边缘误差 中位 %.2e 最大 %.2e"
+          % (sl, np.corrcoef(lx, ly)[0, 1], its.min(), its.max(), np.median(its),
+             np.median(dev), dev.max()))
+
+    fig = plt.figure(figsize=(7.0, 3.30))
+    axa = fig.add_axes([0.090, 0.180, 0.385, 0.745])
+    axb = fig.add_axes([0.595, 0.180, 0.380, 0.745])
+
+    # ---------------- (a) 误差与间隙
+    axa.scatter(delta[~clus], err[~clus], s=22, color=fs.BLUE, zorder=3,
+                edgecolor="white", linewidth=0.4)
+    axa.scatter(delta[clus], err[clus], s=24, facecolor="white", edgecolor=fs.GREEN,
+                linewidth=0.9, zorder=3)
+    xx = np.array([8e-4, 2.0])
+    xm = float(np.exp(lx.mean()))
+    ym = float(np.exp(ic + sl * lx.mean()))
+    axa.plot(xx, ym * (xx / xm) ** sl, color=fs.INK, lw=1.2, zorder=2)
+    axa.plot(xx, ym * (xx / xm) ** (-1.0), color=fs.FAINT, lw=1.0, ls=(0, (4, 3)), zorder=2)
+    axa.set_xscale("log")
+    axa.set_yscale("log")
+    axa.set_xlim(8e-4, 2.0)
+    axa.set_ylim(1e-5, 5.0)
+    axa.set_xlabel("$K_2$ 的谱间隙 $\\delta$（对数刻度）", fontsize=9.2, labelpad=5)
+    axa.set_ylabel("最优旋转后的误差（对数刻度）", fontsize=9.2, labelpad=4)
+    fs.clean(axa, grid=True)
+    from matplotlib.lines import Line2D
+    axa.legend(handles=[Line2D([], [], color=fs.INK, lw=1.2,
+                               label="拟合斜率 %.2f" % sl),
+                        Line2D([], [], color=fs.FAINT, lw=1.0, ls=(0, (4, 3)),
+                               label="参照：误差按 $1/\\delta$")],
+               loc="upper right", fontsize=7.6, handlelength=1.8, labelspacing=0.40,
+               borderaxespad=0.25, handletextpad=0.55)
+    fs.label(axa, 0.015, 0.035, "(a)", fs=9.0, color=fs.MUTED, ha="left", va="bottom",
+             transform=axa.transAxes)
+
+    # ---------------- (b) Sinkhorn 之后的边缘误差
+    idx = np.arange(1, len(dev) + 1)
+    axb.plot(idx, dev, marker="o", ms=2.6, ls="none", color=fs.BLUE, alpha=0.85, zorder=3)
+    axb.axhline(1e-13, color=fs.ACCENT, lw=1.0, ls=(0, (4, 3)), zorder=2)
+    axb.set_yscale("log")
+    axb.set_xlim(0, 84)
+    axb.set_ylim(1e-16, 1e-11)
+    axb.set_xlabel("世界序号", fontsize=9.2, labelpad=5)
+    axb.set_ylabel("边缘误差（对数刻度）", fontsize=9.2, labelpad=4)
+    axb.set_yticks([1e-16, 1e-14, 1e-12])
+    fs.clean(axb, grid=True)
+    fs.label(axb, 82.0, 1.35e-13, "停机容差 $10^{-13}$", fs=7.8, color=fs.ACCENT,
+             ha="right", va="bottom")
+    fs.label(axb, 82.0, 2.2e-14, "中位 $%.1f\\times10^{-14}$" % (np.median(dev) * 1e14),
+             fs=7.8, color=fs.MUTED, ha="right", va="top")
+    fs.label(axb, 0.03, 0.955, "(b)", fs=9.0, color=fs.MUTED, ha="left", va="top",
+             transform=axb.transAxes)
+    return fs.save(fig, "theory", "ch04", "error-gap")
+
+
 if __name__ == "__main__":
     fig_theorem2()
     fig_gap_stability()
+    fig_subspace_angle()
+    fig_error_gap()

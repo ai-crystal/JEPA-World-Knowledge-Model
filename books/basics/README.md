@@ -4,7 +4,7 @@
 
 语言模型把整个互联网读了一遍，却仍然说不清一个杯子放在桌沿时会不会掉下去。它缺的不是参数，而是关于世界的那份表征。JEPA 给出的答案很克制：不去重建像素，只在表征空间里预测。这一册从输入法联想讲到世界模型，把这条路上的每个概念都摊开讲一遍，不预设任何自监督学习的基础。
 
-共 9 章 · 74 页
+共 13 章 · 147 页
 
 [从第 1 章开始](chapters/ch01.md)　·　<a href="../../output/v1-basics.pdf" target="_blank" rel="noopener" data-router-ignore>下载本册 PDF</a>
 
@@ -19,7 +19,11 @@
 - [第 6 章　从图像到视频](chapters/ch06.md)
 - [第 7 章　世界模型是什么](chapters/ch07.md)
 - [第 8 章　让世界模型动起来](chapters/ch08.md)
-- [第 9 章　同一张地图](chapters/ch09.md)
+- [第 9 章　一次训练里到底发生了什么](chapters/ch09.md)
+- [第 10 章　怎么判断一个表征好不好](chapters/ch10.md)
+- [第 11 章　从文字到图像](chapters/ch11.md)
+- [第 12 章　在脑子里试错](chapters/ch12.md)
+- [第 13 章　同一张地图](chapters/ch13.md)
 
 ### 附录
 

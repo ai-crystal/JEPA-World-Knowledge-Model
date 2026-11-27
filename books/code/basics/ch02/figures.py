@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "common"))
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Wedge, FancyBboxPatch
+from matplotlib.patches import Rectangle, Wedge, Ellipse, FancyBboxPatch
 import figstyle as fs
 
 # ---------- 文中引用的数字，全部在此算出 ----------
@@ -16,6 +16,14 @@ N_PATCH = (IMG_SIZE // PATCH) ** 2          # 224/16=14，14x14
 HIDDEN = 768                                # ViT-Base / DINOv2 ViT-B/14 的嵌入维度
 N_CLASS = 1000                              # ImageNet-1K
 VIT_PARAMS = 86e6                           # ViT-Base 总参数（ViT 论文表 1）
+
+
+def pair_cos(P):
+    """一组向量的两两余弦（上三角）。"""
+    Pn = P / np.linalg.norm(P, axis=1, keepdims=True)
+    C = Pn @ Pn.T
+    iu = np.triu_indices(len(P), 1)
+    return C[iu]
 
 
 def report_numbers():
@@ -34,6 +42,20 @@ def report_numbers():
     print(f"原图像素数 {IMG_SIZE * IMG_SIZE}，三通道数值个数 {IMG_SIZE * IMG_SIZE * 3}")
     print(f"线性探测需训练参数 {probe_params}，占 ViT-Base {VIT_PARAMS:.0f} 的 {frac*100:.2f}%")
     print(f"{d} 维随机两点距离 均值 {dist.mean():.2f} 标准差 {dist.std():.2f} 相对标准差 {rel*100:.2f}%")
+
+    # 768 维各向同性下，两两余弦的标准差
+    g = rng.normal(size=(400, HIDDEN))
+    c_iso = pair_cos(g)
+    print(f"{HIDDEN} 维各向同性 两两余弦 均值 {c_iso.mean():+.4f} 标准差 {c_iso.std():.4f}")
+
+    # 768 维锥形：均值方向长度是噪声长度（sqrt(d)）的 m 倍，理论余弦约 m^2/(m^2+1)
+    for m in (1.0, 2.0, 3.0):
+        u = rng.normal(size=HIDDEN)
+        u /= np.linalg.norm(u)
+        X = m * np.sqrt(HIDDEN) * u + rng.normal(size=(300, HIDDEN))
+        c = pair_cos(X)
+        print(f"锥 m={m:.0f}：协方差最大/最小特征值之比对余弦的影响，实测余弦均值 {c.mean():.3f}"
+              f"（理论 {m*m/(m*m+1):.3f}）")
     return dict(n_patch=N_PATCH, probe_frac=frac, rel_std=rel)
 
 
@@ -256,8 +278,138 @@ def fig_metric_neighbors():
     return fs.save(fig, "basics", "ch02", "metric-neighbors")
 
 
+# ---------- 图 2-4 ----------
+def fig_anisotropy():
+    """左：各向同性；右：同一团噪声整体平移出原点，形成锥。三维样本投影到平面上。"""
+    rng = np.random.default_rng(21)
+    n = 260
+    iso = rng.normal(size=(n, 3))
+    mu = np.array([3.05, 0.06, 0.0])
+    cone = mu + rng.normal(scale=0.82, size=(n, 3))
+
+    ci, cc = pair_cos(iso), pair_cos(cone)
+    print(f"三维各向同性 两两余弦 均值 {ci.mean():+.3f} 标准差 {ci.std():.3f}")
+    print(f"三维锥形 两两余弦 均值 {cc.mean():.3f} 标准差 {cc.std():.3f} "
+          f"占 0.6 以上的比例 {(cc > 0.6).mean()*100:.1f}%")
+
+    fig = plt.figure(figsize=(7.0, 3.55))
+    axs = [fig.add_axes([0.070, 0.445, 0.370, 0.480]),
+           fig.add_axes([0.565, 0.445, 0.370, 0.480])]
+    axh = [fig.add_axes([0.070, 0.140, 0.370, 0.190]),
+           fig.add_axes([0.565, 0.140, 0.370, 0.190])]
+
+    for ax, P, col, tag, title in (
+            (axs[0], iso, fs.BLUE, "(a)", "各向同性"),
+            (axs[1], cone, fs.ACCENT, "(b)", "挤在一个锥里")):
+        ax.set_xlim(-3.4, 5.4); ax.set_ylim(-3.45, 3.45)
+        ax.set_aspect("equal")
+        fs.clean(ax, spines=("left", "bottom"))
+        ax.set_xticks([]); ax.set_yticks([])
+        ax.scatter(P[:, 0], P[:, 1], s=13, color=col, alpha=0.62,
+                   edgecolor="white", linewidth=0.35, zorder=4)
+        ax.scatter([0], [0], s=16, color=fs.INK, zorder=6)
+        fs.label(ax, -3.2, -3.15, "原点", fs=7.4, color=fs.MUTED, ha="left")
+        fs.label(ax, 0.03, 0.95, tag, fs=9.4, color=fs.MUTED, ha="left",
+                 transform=ax.transAxes)
+        fs.label(ax, 0.03, 0.865, title, fs=9.6, color=fs.INK, ha="left", weight="bold",
+                 transform=ax.transAxes)
+
+    axs[0].annotate("各个方向差不多宽", xy=(1.05, 1.40), xytext=(1.60, 2.65),
+                    fontsize=7.9, color=fs.MUTED,
+                    arrowprops=dict(arrowstyle="-", color=fs.FAINT, lw=0.8))
+    axs[1].plot([0, 4.55], [0, 4.55 * mu[1] / mu[0]], color=fs.ACCENT, lw=0.9,
+                linestyle=(0, (4, 2.4)), alpha=0.85, zorder=2)
+    sx, sy = cone[:, 0].std(), cone[:, 1].std()
+    axs[1].add_patch(Ellipse(tuple(mu), 4.3 * sx, 4.3 * sy, facecolor=fs.ACCENT,
+                             alpha=0.07, edgecolor=fs.ACCENT, lw=0.9,
+                             linestyle=(0, (4, 2.4)), zorder=1))
+    fs.label(axs[1], 0.16, -0.78, "公共方向", fs=7.6, color=fs.ACCENT, ha="left")
+    axs[1].annotate("所有点落在同一个锥里", xy=(2.55, -1.05), xytext=(0.14, -3.18),
+                    fontsize=7.9, color=fs.MUTED,
+                    arrowprops=dict(arrowstyle="-", color=fs.FAINT, lw=0.8,
+                                    connectionstyle="arc3,rad=-0.18"))
+
+    for ax, c, col, note in ((axh[0], ci, fs.BLUE, "均值 0.00"),
+                             (axh[1], cc, fs.ACCENT, "均值 0.88")):
+        cnt, edges, _ = ax.hist(c, bins=np.linspace(-1, 1, 41), color=col, alpha=0.75,
+                                edgecolor="white", linewidth=0.4)
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(0, cnt.max() * 1.16)
+        fs.clean(ax, spines=("left", "bottom"))
+        ax.set_yticks([])
+        ax.set_xticks([-1, -0.5, 0, 0.5, 1])
+        ax.tick_params(labelsize=7.6, length=2.5, pad=1.5)
+        ax.set_xlabel("两两余弦", fontsize=8.0, labelpad=1.5, color=fs.MUTED)
+        ax.plot([0, 0], [0, ax.get_ylim()[1]], color=fs.FAINT, lw=0.8,
+                linestyle=(0, (3, 2)), zorder=1)
+        fs.label(ax, 0.02, 1.06, note, fs=8.0, color=col, ha="left", va="bottom",
+                 transform=ax.transAxes)
+
+    return fs.save(fig, "basics", "ch02", "anisotropy")
+
+
+# ---------- 图 2-5 ----------
+def fig_rank():
+    """四个点集的奇异值：满秩、近似低秩、低秩、单点。"""
+    rng = np.random.default_rng(5)
+    n, d = 90, 6
+    specs = [
+        ("满秩", [1.00, 0.93, 0.88, 0.81, 0.76, 0.70]),
+        ("近似低秩", [1.00, 0.71, 0.43, 0.09, 0.06, 0.04]),
+        ("低秩", [1.00, 0.86, 0.0, 0.0, 0.0, 0.0]),
+        ("单点", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    ]
+    out = []
+    for name, s in specs:
+        U, _ = np.linalg.qr(rng.normal(size=(n, d)))
+        V, _ = np.linalg.qr(rng.normal(size=(d, d)))
+        X = U @ np.diag(s) @ V.T
+        sv = np.linalg.svd(X, compute_uv=False)
+        rank = int((sv > 1e-6 * sv[0]).sum()) if sv[0] > 0 else 0
+        kappa = sv[0] / sv[rank - 1] if rank else float("nan")
+        out.append((name, sv, rank, kappa))
+        print(f"{name}: 奇异值 {np.round(sv, 3)} 秩 {rank} 条件数 {kappa:.2f}")
+
+    fig = plt.figure(figsize=(7.0, 2.45))
+    w, gap = 0.194, 0.043
+    x0 = 0.092
+    for i, (name, sv, rank, kappa) in enumerate(out):
+        ax = fig.add_axes([x0 + i * (w + gap), 0.30, w, 0.545])
+        norm = sv / sv[0] if sv[0] > 0 else sv
+        xs = np.arange(1, d + 1)
+        ax.bar(xs, norm, width=0.62, color=fs.BLUE if i < 3 else fs.FAINT,
+               alpha=0.85, edgecolor="white", linewidth=0.6, zorder=3)
+        ax.set_xlim(0.3, d + 0.7)
+        ax.set_ylim(0, 1.16)
+        fs.clean(ax, spines=("left", "bottom"))
+        ax.set_xticks(xs)
+        ax.tick_params(labelsize=7.2, length=2.2, pad=1.2)
+        ax.set_yticks([0, 0.5, 1.0])
+        if i:
+            ax.set_yticklabels([])
+            ax.tick_params(axis="y", length=0)
+        else:
+            ax.set_ylabel("相对奇异值", fontsize=8.0, labelpad=3.0)
+            ax.tick_params(axis="y", labelsize=7.2, length=2.2, pad=1.5)
+        ax.set_xlabel("第几个", fontsize=7.4, labelpad=1.0, color=fs.MUTED)
+        fs.label(ax, 0.5, 1.03, name, fs=9.0, color=fs.INK, weight="bold",
+                 transform=ax.transAxes)
+        if rank == 0:
+            fs.label(ax, 0.5, 0.45, "全部为 0", fs=7.8, color=fs.MUTED,
+                     transform=ax.transAxes)
+            fs.label(ax, 0.5, -0.30, "秩 0", fs=8.0, color=fs.ACCENT,
+                     transform=ax.transAxes)
+        else:
+            kt = f"条件数 {kappa:.1f}" if np.isfinite(kappa) else ""
+            fs.label(ax, 0.5, -0.30, f"秩 {rank}，{kt}" if kt else f"秩 {rank}",
+                     fs=8.0, color=fs.ACCENT, transform=ax.transAxes)
+    return fs.save(fig, "basics", "ch02", "rank")
+
+
 if __name__ == "__main__":
     report_numbers()
     fig_image_to_vector()
     fig_probe_vs_finetune()
     fig_metric_neighbors()
+    fig_anisotropy()
+    fig_rank()

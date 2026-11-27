@@ -69,6 +69,9 @@ def fig_landscape_1d():
                   labelpad=8)
 
     eb = energy1(np.array([M1, M2, mu])) - e0
+    h = 1e-6
+    sc = (dens(h) - dens(-h)) / (2 * h) / dens(0.0)      # x=0 处的得分
+    print("[1-1] x=0 处的得分 %.3f，即能量的一阶导数 %.3f" % (sc, -sc))
     mid = (x > M1) & (x < M2)
     ip = int(np.argmax(np.where(mid, e, -1.0)))
     print("[1-1] 两谷之间的墙顶 x=%.2f E=%.3f" % (x[ip], e[ip]))
@@ -232,7 +235,211 @@ def fig_l1_l2():
     return fs.save(fig, "practice", "ch01", "l1-vs-l2")
 
 
+# ---- 图 1-4：沿一条路径切片，顺带看一维投影 -----------------------------
+SA = np.array([-1.20, 0.55])        # 候选甲
+SB = np.array([1.12, -0.60])        # 候选乙
+
+
+def _g2(x, y, cx, cy, sx, sy, th, w):
+    """二维各向异性高斯，th 是主轴相对横轴的旋转角。"""
+    ca, sn = np.cos(th), np.sin(th)
+    u = (x - cx) * ca + (y - cy) * sn
+    v = -(x - cx) * sn + (y - cy) * ca
+    return w / (2 * np.pi * sx * sy) * np.exp(-(u ** 2 / (2 * sx ** 2) + v ** 2 / (2 * sy ** 2)))
+
+
+def energy_slice(x, y):
+    """两个候选各是一小团，能量取负对数密度。"""
+    p = _g2(x, y, SA[0], SA[1], 0.40, 0.30, 0.35, 0.60) \
+        + _g2(x, y, SB[0], SB[1], 0.44, 0.33, -0.40, 0.40)
+    return -np.log(p + 1e-14)
+
+
+def path_profile(n=1201):
+    t = np.linspace(0.0, 1.0, n)
+    pts = SA[None, :] + t[:, None] * (SB - SA)[None, :]
+    e = np.array([energy_slice(p[0], p[1]) for p in pts])
+    return t, pts, e - e.min()
+
+
+def proj_envelope(nx=520, ny=760):
+    """把窗口内的点按横坐标分箱，取每个箱里的最低能量。"""
+    xs = np.linspace(-1.55, 1.45, nx)
+    ys = np.linspace(-1.90, 1.90, ny)
+    gx, gy = np.meshgrid(xs, ys)
+    z = energy_slice(gx, gy)
+    return xs, z.min(axis=0)
+
+
+def fig_energy_slice():
+    t, pts, e = path_profile()
+    xs, env = proj_envelope()
+    env = env - env.min()
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.6, 3.45),
+                             gridspec_kw=dict(width_ratios=[1.0, 1.18], wspace=0.30))
+
+    # ---- (a) 二维等高线 + 路径
+    ax = axes[0]
+    gx, gy = np.meshgrid(np.linspace(-1.90, 1.80, 620), np.linspace(-1.90, 1.80, 620))
+    z = energy_slice(gx, gy)
+    lv = np.linspace(0.0, 7.6, 16)
+    cf = ax.contourf(gx, gy, z, levels=lv, cmap="Blues_r", alpha=0.92, extend="max", zorder=1)
+    ax.contour(gx, gy, z, levels=lv, colors="#8496AD", linewidths=0.4, zorder=2)
+
+    ax.plot([SA[0], SB[0]], [SA[1], SB[1]], color=fs.ACCENT, lw=1.6, zorder=5)
+    tick = np.linspace(0, 1, 13)
+    ax.scatter(SA[0] + tick * (SB[0] - SA[0]), SA[1] + tick * (SB[1] - SA[1]),
+               s=7, color="white", edgecolor=fs.ACCENT, linewidth=0.6, zorder=6)
+
+    for p, lab, dx, dy in ((SA, "候选甲", -0.16, 0.30), (SB, "候选乙", 0.14, -0.30)):
+        ax.plot([p[0]], [p[1]], marker="o", ms=6.2, color=fs.ACCENT, zorder=7)
+        ax.text(p[0] + dx, p[1] + dy, lab, fontsize=9.2, color=fs.ACCENT,
+                ha="center", va="center", zorder=8,
+                bbox=dict(fc="white", ec="none", alpha=0.75, pad=1.4))
+
+    i = int(np.argmax(e))
+    ax.plot([pts[i, 0]], [pts[i, 1]], marker="D", ms=5.0, color="white",
+            mec=fs.INK, mew=0.9, zorder=8)
+    ax.annotate("墙顶", xy=(pts[i, 0], pts[i, 1]), xytext=(pts[i, 0] - 0.05, pts[i, 1] + 0.62),
+                ha="center", fontsize=9.0, color=fs.INK, zorder=9,
+                bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.4),
+                arrowprops=dict(arrowstyle="-", color=fs.INK, lw=0.8, shrinkB=4))
+
+    ax.set_xlim(-1.90, 1.80)
+    ax.set_ylim(-1.90, 1.80)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlabel("$y_1$", fontsize=9.4, color=fs.MUTED)
+    ax.set_ylabel("$y_2$", fontsize=9.4, color=fs.MUTED)
+    ax.text(0.02, 0.97, "(a)", transform=ax.transAxes, fontsize=10.0,
+            color=fs.INK, va="top", ha="left", weight="bold", zorder=10)
+    fs.clean(ax, spines=())
+    cb = fig.colorbar(cf, ax=ax, shrink=0.78, pad=0.03, ticks=[2.4, 4.8, 7.2])
+    cb.ax.tick_params(labelsize=7.8, colors=fs.MUTED)
+    cb.outline.set_visible(False)
+
+    # ---- (b) 剖面与投影下包络
+    ax = axes[1]
+    m = (xs >= SA[0] - 0.10) & (xs <= SB[0] + 0.10)
+    ax.plot(xs[m], env[m], color=fs.BLUE, lw=1.3, ls=(0, (4, 2.5)), zorder=3,
+            label="一维投影：下包络")
+    ax.plot(pts[:, 0], e, color=fs.ACCENT, lw=1.9, zorder=4, label="沿路径切片")
+
+    hb = e[i]
+    he = env[m].max() if np.isfinite(env[m]).any() else np.nan
+    ax.plot([pts[i, 0]], [hb], marker="o", ms=5.6, color=fs.ACCENT, zorder=6)
+    j = int(np.nanargmax(np.where(m, env, np.nan)))
+    ax.plot([xs[j]], [env[j]], marker="o", ms=5.6, color=fs.BLUE, zorder=6)
+
+    ax.annotate("%.2f" % hb, xy=(pts[i, 0] + 0.04, hb), xytext=(0.56, hb), fontsize=9.0,
+                color=fs.ACCENT, ha="left", va="center", zorder=8,
+                arrowprops=dict(arrowstyle="-", color=fs.ACCENT, lw=0.8, shrinkB=6))
+    ax.annotate("%.2f" % he, xy=(xs[j] - 0.04, env[j]), xytext=(-0.46, he), fontsize=9.0,
+                color=fs.BLUE, ha="right", va="center", zorder=8,
+                arrowprops=dict(arrowstyle="-", color=fs.BLUE, lw=0.8, shrinkB=6))
+    ax.annotate("", xy=(1.05, hb), xytext=(1.05, he),
+                arrowprops=dict(arrowstyle="<->", color=fs.MUTED, lw=0.8,
+                                shrinkA=0, shrinkB=0), zorder=7)
+    ax.text(1.11, (hb + he) / 2.0, "%.2f" % (hb - he), fontsize=8.6,
+            color=fs.MUTED, ha="left", va="center", zorder=8)
+
+    ax.set_xlim(SA[0] - 0.12, SB[0] + 0.40)
+    ax.set_ylim(-0.35, 6.55)
+    ax.set_xlabel("沿路径的横坐标 $y_1$", fontsize=9.2, color=fs.MUTED)
+    ax.set_ylabel("能量（纳特）", fontsize=9.2, color=fs.MUTED)
+    ax.set_yticks([0, 2, 4, 6])
+    ax.legend(loc="upper right", bbox_to_anchor=(1.00, 1.02), frameon=True,
+              facecolor="white", edgecolor="none", framealpha=0.95,
+              handlelength=1.7, fontsize=8.8, labelspacing=0.4)
+    ax.text(0.02, 0.97, "(b)", transform=ax.transAxes, fontsize=10.0,
+            color=fs.INK, va="top", ha="left", weight="bold", zorder=10)
+    fs.clean(ax, grid=True)
+
+    print("[1-4] 剖面墙高 %.3f 在 t=%.3f（横坐标 %.2f），两谷底 %.3f / %.3f"
+          % (hb, t[i], pts[i, 0], e[0], e[-1]))
+    print("[1-4] 投影下包络峰值 %.3f，低估 %.3f 纳特，概率上 %.2f 倍"
+          % (he, hb - he, np.exp(hb - he)))
+    return fs.save(fig, "practice", "ch01", "energy-slice")
+
+
+# ---- 图 1-5：三种损失的形状与梯度 ---------------------------------------
+def fig_loss_types():
+    d = np.linspace(-0.5, 8.0, 1400)
+    fig, axes = plt.subplots(1, 3, figsize=(7.8, 2.92),
+                             gridspec_kw=dict(width_ratios=[1.0, 1.0, 1.05], wspace=0.34))
+
+    KS = (8, 64, 256)
+    cols = (fs.BLUE, fs.GREEN, fs.PURPLE)
+
+    # (a) 损失随能量差
+    ax = axes[0]
+    for K, c in zip(KS, cols):
+        ax.plot(d, np.log1p((K - 1) * np.exp(-d)), color=c, lw=1.6, zorder=3,
+                label="对比式 $K=%d$" % K)
+    ax.plot(d, np.maximum(0.0, 2.0 - d), color=fs.ACCENT, lw=1.6, zorder=3, label="hinge $m=2$")
+    ax.set_xlim(-0.5, 8.0)
+    ax.set_ylim(-0.25, 6.7)
+    ax.set_xlabel("能量差 $E_\\mathrm{neg}-E_\\mathrm{pos}$", fontsize=8.8, color=fs.MUTED)
+    ax.set_ylabel("损失", fontsize=9.0, color=fs.MUTED)
+    ax.set_xticks([0, 2, 4, 6, 8])
+    ax.set_yticks([0, 2, 4, 6])
+    ax.legend(loc="upper right", frameon=True, facecolor="white", edgecolor="none",
+              framealpha=0.95, fontsize=8.4, handlelength=1.5, labelspacing=0.35,
+              borderpad=0.4)
+    ax.text(0.02, 0.97, "(a)", transform=ax.transAxes, fontsize=10.0, color=fs.INK,
+            va="top", ha="left", weight="bold", zorder=10)
+    fs.clean(ax, grid=True)
+
+    # (b) 对能量差的梯度
+    ax = axes[1]
+    for K, c in zip(KS, cols):
+        g = (K - 1) * np.exp(-d) / (1.0 + (K - 1) * np.exp(-d))
+        ax.plot(d, g, color=c, lw=1.6, zorder=3)
+        ds = np.log(K - 1)
+        ax.plot([ds], [0.5], marker="o", ms=4.4, color=c, zorder=5)
+    ax.plot(d, np.where(d < 2.0, 1.0, 0.0), color=fs.ACCENT, lw=1.6, zorder=3)
+    ax.text(4.10, -0.17, "余量之外梯度为零", fontsize=8.2, color=fs.ACCENT,
+            ha="center", va="center", zorder=8)
+    ax.set_xlim(-0.5, 8.0)
+    ax.set_ylim(-0.32, 1.12)
+    ax.set_xlabel("能量差 $E_\\mathrm{neg}-E_\\mathrm{pos}$", fontsize=8.8, color=fs.MUTED)
+    ax.set_ylabel("梯度幅度", fontsize=9.0, color=fs.MUTED)
+    ax.set_xticks([0, 2, 4, 6, 8])
+    ax.set_yticks([0, 0.5, 1.0])
+    ax.text(0.02, 0.97, "(b)", transform=ax.transAxes, fontsize=10.0, color=fs.INK,
+            va="top", ha="left", weight="bold", zorder=10)
+    fs.clean(ax, grid=True)
+
+    # (c) 负样本数与梯度峰值所在位置
+    ax = axes[2]
+    K = np.logspace(np.log10(2.0), 6.0, 400)
+    ax.plot(K, np.log(K - 1), color=fs.INK, lw=1.6, zorder=3)
+    for Kv, c, lab in ((256, fs.GREEN, "$K=256$\n5.54"), (65536, fs.PURPLE, "$K=65536$\n11.09")):
+        ax.plot([Kv], [np.log(Kv - 1)], marker="o", ms=5.2, color=c, zorder=5)
+        ax.annotate(lab, xy=(Kv, np.log(Kv - 1)), xytext=(Kv * 0.075, np.log(Kv - 1) + 1.45),
+                    fontsize=8.4, color=c, ha="center", va="center", linespacing=1.5,
+                    zorder=8, arrowprops=dict(arrowstyle="-", color=c, lw=0.7, shrinkB=4))
+    ax.set_xscale("log")
+    ax.set_xlim(2.0, 1e6)
+    ax.set_ylim(0.0, 13.2)
+    ax.set_xlabel("候选总数 $K$", fontsize=8.8, color=fs.MUTED)
+    ax.set_ylabel("梯度峰值处的能量差（纳特）", fontsize=8.8, color=fs.MUTED)
+    ax.set_yticks([0, 4, 8, 12])
+    ax.text(0.02, 0.97, "(c)", transform=ax.transAxes, fontsize=10.0, color=fs.INK,
+            va="top", ha="left", weight="bold", zorder=10)
+    fs.clean(ax, grid=True)
+
+    for K_ in KS:
+        print("[1-5] K=%6d 梯度峰值在能量差 %.3f 纳特，即 %.2f 比特"
+              % (K_, np.log(K_ - 1), np.log(K_ - 1) / np.log(2.0)))
+    return fs.save(fig, "practice", "ch01", "loss-types")
+
+
 if __name__ == "__main__":
     fig_landscape_1d()
     fig_contour()
     fig_l1_l2()
+    fig_energy_slice()
+    fig_loss_types()

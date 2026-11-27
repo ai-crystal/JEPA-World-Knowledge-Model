@@ -164,6 +164,130 @@ def fig_nuisance():
     return fs.save(fig, "practice", "ch08", "nuisance")
 
 
+# ---------------------------------------------------------------- 图 8-4
+def fig_taxonomy():
+    """四个模态各自的观测单位、好视图与坏视图。"""
+    fig = plt.figure(figsize=(7.0, 3.60))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+
+    cols = [
+        ("图像", "一张照片", "同场景另一次拍摄", "同一张图的另一次裁剪"),
+        ("文本", "一句描述", "同一张图的另一句描述", "同一句话的两次掩码"),
+        ("视频", "一段片段", "同一片段的不同帧", "同一帧的两处裁剪"),
+        ("音频", "一段录音", "同一段话的另一遍录音", "同一段音频两处掩码"),
+    ]
+    xs = [0.135, 0.378, 0.621, 0.864]
+    w, hb = 0.205, 0.130
+
+    for cx, (name, unit, good, bad) in zip(xs, cols):
+        x = cx - w / 2
+        # 模态名
+        fs.label(ax, cx, 0.938, name, fs=10.2, weight="bold")
+        # 好视图
+        fs.box(ax, x, 0.660, w, hb, "", fc="#EFF4FF", ec=fs.BLUE, lw=1.05)
+        fs.label(ax, cx, 0.750, "好视图", fs=7.4, color=fs.BLUE, weight="bold")
+        fs.label(ax, cx, 0.697, good, fs=8.3, color=fs.INK)
+        # 观测
+        fs.box(ax, x, 0.415, w, hb, "", fc="#FFFFFF", ec=fs.INK, lw=1.15)
+        fs.label(ax, cx, 0.506, "一次观测", fs=7.4, color=fs.MUTED)
+        fs.label(ax, cx, 0.452, unit, fs=8.6, color=fs.INK, weight="bold")
+        # 坏视图
+        fs.box(ax, x, 0.170, w, hb, "", fc="#FFF6ED", ec=fs.ACCENT, lw=1.05)
+        fs.label(ax, cx, 0.260, "坏视图", fs=7.4, color=fs.ACCENT, weight="bold")
+        fs.label(ax, cx, 0.207, bad, fs=8.3, color=fs.INK)
+        # 两条箭头
+        fs.arrow(ax, (cx, 0.548), (cx, 0.655), color=fs.BLUE, lw=1.0)
+        fs.arrow(ax, (cx, 0.412), (cx, 0.305), color=fs.ACCENT, lw=1.0)
+
+    # 图例
+    y = 0.072
+    ax.add_patch(plt.Rectangle((0.068, y - 0.019), 0.026, 0.038, facecolor="#EFF4FF",
+                               edgecolor=fs.BLUE, lw=1.0, zorder=3))
+    fs.label(ax, 0.104, y, "另一份材料，同一件事", fs=7.8, color=fs.MUTED, ha="left")
+    ax.add_patch(plt.Rectangle((0.505, y - 0.019), 0.026, 0.038, facecolor="#FFF6ED",
+                               edgecolor=fs.ACCENT, lw=1.0, zorder=3))
+    fs.label(ax, 0.541, y, "同一份材料，只动一小块", fs=7.8, color=fs.MUTED, ha="left")
+    return fs.save(fig, "practice", "ch08", "view-taxonomy")
+
+
+# ---------------------------------------------------------------- 图 8-5
+def fig_quality_quantity():
+    """对齐随样本数的对数线性增长，以及好视图比例的边际收益。"""
+    fig = plt.figure(figsize=(7.0, 3.45))
+    ax = fig.add_axes([0.082, 0.160, 0.425, 0.780])
+    ax2 = fig.add_axes([0.630, 0.160, 0.330, 0.780])
+
+    # (q, 5M 处, 80M 处, 颜色, 图例文字)
+    qs = [(0.0, .221, .310, fs.ACCENT, "q = 0，全是坏视图"),
+          (0.1, .2324, .3276, fs.GREEN, "q = 0.1"),
+          (0.3, .267, .3730, fs.PURPLE, "q = 0.3"),
+          (1.0, .292, .409, fs.BLUE, "q = 1，全是好视图")]
+    lo, hi = np.log10(5), np.log10(80)
+    for q, a, b, c, lab in qs:
+        s = (b - a) / (hi - lo)
+        ax.plot([5, 80], [a, b], color=c, lw=1.6, solid_capstyle="round", zorder=3,
+                label=lab)
+        if q in (0.0, 0.1, 1.0):
+            ax.plot([80, 320], [b, a + s * (np.log10(320) - lo)], color=c, lw=1.1,
+                    ls=(0, (3.2, 2.4)), zorder=2)
+
+    # 320M 处的实测值（论文外推检查）
+    for val, c in ((.338, fs.ACCENT), (.348, fs.GREEN), (.418, fs.BLUE)):
+        ax.scatter([320], [val], s=26, facecolor="white", edgecolor=c, lw=1.2, zorder=6)
+    ax.annotate("", xy=(320, .4205), xytext=(320, .4515),
+                arrowprops=dict(arrowstyle="<->", color=fs.BLUE, lw=0.85, shrinkA=2, shrinkB=2))
+    ax.text(296, .443, "公式给 .455", fontsize=7.2, color=fs.BLUE, ha="right", va="center")
+    ax.text(300, .403, "实测算 .418", fontsize=7.2, color=fs.BLUE, ha="right", va="center")
+
+    # .33 参考线
+    ax.axhline(.33, color=fs.FAINT, lw=0.9, ls=(0, (1.6, 2.2)), zorder=1)
+    ax.text(4.5, .3345, ".33 参考线", fontsize=7.2, color=fs.MUTED, ha="left", va="bottom")
+    # 好视图曲线穿过 .33 的位置
+    ax.plot([12.3, 12.3], [.3215, .330], color=fs.BLUE, lw=0.9, zorder=4)
+    ax.text(12.0, .3185, "12M", fontsize=7.2, color=fs.BLUE, ha="center", va="top")
+
+    ax.set_xscale("log")
+    ax.set_xlim(4.2, 470)
+    ax.set_ylim(.205, .475)
+    ax.set_xticks([5, 10, 20, 40, 80, 160, 320])
+    ax.set_xticklabels(["5M", "10M", "20M", "40M", "80M", "160M", "320M"], fontsize=8)
+    ax.set_yticks([.22, .26, .30, .34, .38, .42, .46])
+    ax.set_yticklabels([".22", ".26", ".30", ".34", ".38", ".42", ".46"], fontsize=8)
+    ax.set_xlabel("训练样本数（对数）", fontsize=8.6)
+    ax.set_ylabel("Flickr 检索 R@1", fontsize=8.6)
+    fs.clean(ax, spines=("left", "bottom"), grid=True)
+    ax.grid(alpha=.55, lw=.6, zorder=0)
+    leg = ax.legend(loc="upper left", fontsize=7.6, handlelength=1.6, borderpad=0.3,
+                    labelspacing=0.45, ncol=1)
+    for t in leg.get_texts():
+        t.set_color(fs.INK)
+    ax.text(0.985, 0.020, "(a)", transform=ax.transAxes, fontsize=8.4, color=fs.MUTED,
+            ha="right", va="bottom")
+
+    # ---- 右图：边际收益
+    rows = [("0 → 10%", .020, "+.020", fs.BLUE),
+            ("10% → 30%", .020, "+.020", fs.BLUE),
+            ("30% → 100%", .0043, "+.004", fs.FAINT)]
+    yy = np.arange(len(rows))[::-1]
+    for y, (lab, v, txt, c) in zip(yy, rows):
+        ax2.barh(y, v, height=0.46, color=c, zorder=3)
+        ax2.text(v + .0009, y, txt, va="center", ha="left", fontsize=8.2, color=fs.INK)
+    ax2.set_yticks(yy)
+    ax2.set_yticklabels([r[0] for r in rows], fontsize=8.4)
+    ax2.set_ylim(-0.55, len(rows) - 0.45)
+    ax2.set_xlim(0, .0265)
+    ax2.set_xticks([0, .01, .02])
+    ax2.set_xticklabels(["0", ".01", ".02"], fontsize=8)
+    ax2.set_xlabel("R@1 增量（20M 样本处）", fontsize=8.4)
+    fs.clean(ax2, spines=("bottom",))
+    ax2.tick_params(axis="y", length=0)
+    ax2.set_title("好视图比例的边际收益", fontsize=8.8, color=fs.MUTED, pad=9)
+    ax2.text(0.006, -0.30, "同样十个百分点，收益只剩五分之一", fontsize=7.2,
+             color=fs.MUTED, ha="left", va="center")
+    return fs.save(fig, "practice", "ch08", "quality-quantity")
+
+
 # ---------------------------------------------------------------- 图 8-3
 def fig_knobs():
     """表 8 摘录：一次只改一个旋钮，相对默认设置的 R@1 变化。"""
@@ -236,3 +360,5 @@ if __name__ == "__main__":
     fig_views()
     fig_nuisance()
     fig_knobs()
+    fig_taxonomy()
+    fig_quality_quantity()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""第 9 章插图：时空 tubelet 与掩码、V-JEPA 2 的三段配方与规划回路。"""
+"""第 6 章插图：时空 tubelet 与掩码、V-JEPA 2 的三段配方与规划回路、
+视频数据管线、评估任务矩阵。"""
 import os
 import sys
 
@@ -257,10 +258,176 @@ def fig_double_mask():
     return fs.save(fig, "practice", "ch06", "double-mask")
 
 
+def fig_video_data():
+    """视频数据管线的四道关，以及 VM22M 的样本占比与采样权重。"""
+    fig = plt.figure(figsize=(6.9, 4.55))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+
+    # ---------- 上半：四道关 ----------
+    fs.label(ax, 0.048, 0.966, "(a)　一段视频到一批张量", fs=8.8, color=fs.MUTED,
+             ha="left", weight="bold")
+    w, h, y0, gap = 0.207, 0.206, 0.728, 0.024
+    xs = [0.050 + i * (w + gap) for i in range(4)]
+    stage = [
+        ("一　采集与去重", "剔掉验证集重叠", "2200 万段入库", fs.BLUE),
+        ("二　解码与抽帧", "4 fps 取 64 帧", "一段 16 秒", fs.PURPLE),
+        ("三　裁剪与缩放", "缩放 0.3 至 1.0", "裁到 256 × 256", fs.GREEN),
+        ("四　混样与成批", "按来源加权抽", "3072 段一批", fs.ACCENT),
+    ]
+    for x, (t1, t2, t3, c) in zip(xs, stage):
+        fs.box(ax, x, y0, w, h, "", fc="#FFFFFF", ec=c, lw=1.1)
+        fs.label(ax, x + 0.013, y0 + h - 0.040, t1, fs=8.2, color=c, ha="left",
+                 weight="bold")
+        fs.label(ax, x + 0.013, y0 + h - 0.098, t2, fs=7.2, color=fs.INK, ha="left")
+        fs.label(ax, x + 0.013, y0 + h - 0.146, t3, fs=7.2, color=fs.MUTED, ha="left")
+
+    for i in range(3):
+        fs.arrow(ax, (xs[i] + w + 0.003, y0 + h / 2), (xs[i + 1] - 0.003, y0 + h / 2),
+                 color=fs.FAINT, lw=1.1)
+
+    fs.label(ax, 0.050, 0.676, "顺序固定：去重必须在裁剪之前，抽帧率决定后面每一步的量",
+             fs=7.4, color=fs.MUTED, ha="left")
+
+    # ---------- 下半：配比 ----------
+    fs.label(ax, 0.048, 0.610, "(b)　VM22M 五个来源的样本占比与采样权重", fs=8.8,
+             color=fs.MUTED, ha="left", weight="bold")
+    ax.add_patch(plt.Rectangle((0.700, 0.598), 0.030, 0.014, facecolor="#DCE2EA",
+                               edgecolor="none", zorder=3))
+    fs.label(ax, 0.736, 0.605, "样本占比", fs=7.0, color=fs.MUTED, ha="left")
+    ax.add_patch(plt.Rectangle((0.812, 0.598), 0.030, 0.014, facecolor=fs.ACCENT,
+                               edgecolor="none", zorder=3))
+    fs.label(ax, 0.848, 0.605, "权重", fs=7.0, color=fs.ACCENT, ha="left")
+
+    src = [("SSv2", 16.8, 0.056), ("Kinetics", 73.3, 0.188),
+           ("HowTo100M", 110.0, 0.318), ("YT1B", 1900.0, 0.188),
+           ("ImageNet", 100.0, 0.250)]
+    total, x0, factor, bh = 2200.0, 0.250, 0.550, 0.028
+    ys = [0.546, 0.458, 0.370, 0.282, 0.194]
+    for (name, n, wgt), y in zip(src, ys):
+        share = n / total
+        ax.add_patch(plt.Rectangle((x0, y), share * factor, bh, facecolor="#DCE2EA",
+                                   edgecolor="none", zorder=2))
+        ax.add_patch(plt.Rectangle((x0, y - bh - 0.010), wgt * factor, bh,
+                                   facecolor=fs.ACCENT, edgecolor="none", zorder=2))
+        fs.label(ax, x0 - 0.012, y - 0.014, name, fs=7.8, color=fs.INK, ha="right")
+        fs.label(ax, x0 - 0.012, y - 0.046, f"{n:g} 万段", fs=6.6, color=fs.MUTED,
+                 ha="right")
+        fs.label(ax, x0 + wgt * factor + 0.008, y - bh - 0.010 + bh / 2,
+                 f"{wgt:.0%}", fs=6.8, color=fs.ACCENT, ha="left")
+
+    fs.label(ax, 0.868, 0.560, "每轮遍数", fs=7.2, color=fs.MUTED, ha="center")
+    for (name, n, wgt), y in zip(src, ys):
+        ep = wgt * total / n
+        col = fs.ACCENT if ep > 1 else fs.MUTED
+        fs.label(ax, 0.868, y - 0.020, f"{ep:.1f} 遍", fs=8.0, color=col, ha="center",
+                 weight="bold" if ep > 5 else "normal")
+
+    # 坐标轴
+    ax.plot([x0, x0 + 0.80 * factor], [0.148, 0.148], color=fs.FAINT, lw=0.9)
+    for t in (0, 0.25, 0.5, 0.75):
+        xx = x0 + t * factor
+        ax.plot([xx, xx], [0.148, 0.142], color=fs.FAINT, lw=0.8)
+        fs.label(ax, xx, 0.120, f"{t:.0%}" if t else "0", fs=6.8, color=fs.MUTED)
+        ax.plot([xx, xx], [0.152, 0.560], color=fs.GRID, lw=0.6, zorder=0)
+
+    fs.label(ax, 0.048, 0.070, "权重之和为 1；权重乘 2200 万再除以来源样本数，就是一轮里被走过的遍数。",
+             fs=7.4, color=fs.INK, ha="left")
+    fs.label(ax, 0.048, 0.030, "YT1B 一轮只走两成，几个小数据集被重复看五到七遍。",
+             fs=7.4, color=fs.ACCENT, ha="left")
+
+    for (_, n, wgt), y in zip(src, ys):
+        print(f"{n:7.1f} 万段 占 {n / total:6.1%}，权重 {wgt:.3f}，一轮走 {wgt * total / n:.2f} 遍")
+    return fs.save(fig, "practice", "ch06", "video-pipeline")
+
+
+def fig_eval_matrix():
+    """四个基准的评估矩阵，以及两代最终模型在六个分类任务上的差。"""
+    fig = plt.figure(figsize=(6.9, 3.72))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+
+    fs.label(ax, 0.030, 0.952, "(a)　四个基准各在考什么", fs=8.8, color=fs.MUTED,
+             ha="left", weight="bold")
+
+    cx = [0.038, 0.120, 0.205, 0.372, 0.548]
+    heads = ["基准", "类别", "考什么", "评估输入", "V-JEPA 2"]
+    has = ["left", "left", "left", "left", "right"]
+    for x, t, ha in zip(cx, heads, has):
+        fs.label(ax, x, 0.884, t, fs=7.4, color=fs.MUTED, ha=ha)
+    ax.plot([0.030, 0.556], [0.866, 0.866], color=fs.FAINT, lw=0.9)
+
+    rows = [
+        ("SSv2", "运动", "动作本身，物体可换", "16 × 2 × 3", "77.3", fs.BLUE),
+        ("K400", "外观", "动作类别，单帧可猜", "16 × 8 × 3", "87.3", fs.GREEN),
+        ("IN1K", "外观", "物体，时间维无用", "16 × 5 × 3", "85.1", fs.GREEN),
+        ("EK100", "预期", "下一秒会发生什么", "32 帧 8 fps", "39.7", fs.PURPLE),
+    ]
+    ys = [0.782, 0.662, 0.542, 0.422]
+    for (name, kind, what, inp, score, c), y in zip(rows, ys):
+        ax.add_patch(plt.Rectangle((0.024, y - 0.030), 0.005, 0.058, facecolor=c,
+                                   edgecolor="none", zorder=3))
+        fs.label(ax, cx[0], y, name, fs=8.2, color=fs.INK, ha="left", weight="bold")
+        fs.label(ax, cx[1], y, kind, fs=7.4, color=c, ha="left")
+        fs.label(ax, cx[2], y, what, fs=7.2, color=fs.INK, ha="left")
+        fs.label(ax, cx[3], y, inp, fs=7.2, color=fs.MUTED, ha="left")
+        fs.label(ax, cx[4], y, score, fs=7.8, color=c, ha="right", weight="bold")
+    ax.plot([0.030, 0.556], [0.378, 0.378], color=fs.FAINT, lw=0.9)
+
+    fs.label(ax, 0.030, 0.338, "分数取 V-JEPA 2 ViT-g384，除 EK100 用召回前五之外都是 top-1。",
+             fs=6.9, color=fs.MUTED, ha="left")
+    fs.label(ax, 0.030, 0.300, "同一个 ViT-H 在 SSv2 上按 16 × 1 × 1 读 72.2，按 16 × 2 × 3 读 74.3。",
+             fs=6.9, color=fs.MUTED, ha="left")
+
+    # 冻结编码器加探测头的协议说明
+    fs.box(ax, 0.026, 0.086, 0.530, 0.170, "", fc="#FAFBFC", ec=fs.GRID, lw=0.9, z=1)
+    fs.label(ax, 0.040, 0.224, "探测头协议（六个分类任务共用一套）", fs=7.2, color=fs.INK,
+             ha="left", weight="bold")
+    fs.label(ax, 0.040, 0.186, "4 层 transformer，末层用 1 个可学习 query 做交叉注意力；", fs=6.9,
+             color=fs.MUTED, ha="left")
+    fs.label(ax, 0.040, 0.153, "20 组 head 乘 5 组学习率乘 4 组权重衰减，训 20 轮取最好。", fs=6.9,
+             color=fs.MUTED, ha="left")
+    fs.label(ax, 0.040, 0.120, "编码器全程冻结，分数只反映表征里有什么。", fs=6.9,
+             color=fs.ACCENT, ha="left")
+
+    # ---------- 右：两代的差 ----------
+    fs.label(ax, 0.596, 0.952, "(b)　六个分类任务上两代的差", fs=8.8, color=fs.MUTED,
+             ha="left", weight="bold")
+    bars = [("IN1K", 5.1, fs.GREEN), ("COIN", 4.0, fs.GREEN), ("SSv2", 3.0, fs.BLUE),
+            ("K400", 2.8, fs.GREEN), ("Diving-48", 2.3, fs.BLUE), ("Jester", 0.1, fs.BLUE)]
+    xb, fac, hh = 0.680, 0.047, 0.048
+    ys2 = [0.812, 0.706, 0.600, 0.494, 0.388, 0.282]
+    for (name, d, col), y in zip(bars, ys2):
+        ax.add_patch(plt.Rectangle((xb, y), d * fac, hh, facecolor=col, edgecolor="none",
+                                   zorder=2))
+        fs.label(ax, xb - 0.012, y + hh / 2, name, fs=7.2, color=fs.INK, ha="right")
+        fs.label(ax, xb + d * fac + 0.010, y + hh / 2, f"+{d:.1f}", fs=7.4, color=col,
+                 ha="left", weight="bold")
+
+    ax.plot([xb, xb], [0.238, 0.874], color=fs.FAINT, lw=0.9)
+    for t in (0, 2, 4):
+        xx = xb + t * fac
+        ax.plot([xx, xx], [0.238, 0.232], color=fs.FAINT, lw=0.8)
+        fs.label(ax, xx, 0.212, str(t), fs=6.8, color=fs.MUTED)
+    fs.label(ax, 0.596, 0.180, "蓝为运动理解，绿为外观理解。", fs=6.9, color=fs.MUTED,
+             ha="left")
+    fs.label(ax, 0.596, 0.148, "V-JEPA ViT-H 到 V-JEPA 2 ViT-g384，", fs=6.9, color=fs.MUTED,
+             ha="left")
+    fs.label(ax, 0.596, 0.116, "含数据、参数与分辨率三处同时改动。", fs=6.9, color=fs.MUTED,
+             ha="left")
+
+    for name, a, b in [("SSv2", 74.3, 77.3), ("Diving-48", 87.9, 90.2), ("Jester", 97.7, 97.8),
+                       ("K400", 84.5, 87.3), ("COIN", 87.1, 91.1), ("IN1K", 80.0, 85.1)]:
+        print(f"{name:10s} {a:5.1f} → {b:5.1f}　差 {b - a:+.1f}")
+    return fs.save(fig, "practice", "ch06", "eval-matrix")
+
+
 if __name__ == "__main__":
     fig_tubelet()
     fig_pipeline()
     fig_double_mask()
+    fig_video_data()
+    fig_eval_matrix()
     # 正文里的词元数按论文的切块方式算出来：时间方向 T/2，每个空间方向 R/16
     tok = {}
     for T, R in ((16, 224), (16, 256), (64, 384)):
@@ -271,3 +438,12 @@ if __name__ == "__main__":
     # 规划那一段用到的算术，数来自论文正文
     print(f"800 条样本 × 10 轮迭代 = {800 * 10} 次预测器前向")
     print(f"Cosmos 单个动作 4 分钟 = 240 秒，V-JEPA 2-AC 16 秒，相差 {240 / 16:.0f} 倍")
+    # 6.9 数据管线里用到的算术
+    mb = 16 * 256 * 256 * 3 / 1e6
+    print(f"一段 16 帧 256 x 256 的 uint8 片段 {mb:.2f} MB，2200 万段全存 {mb * 22e6 / 1e6:.0f} TB")
+    print(f"16 秒 30 fps 共 {16 * 30} 帧，按 4 fps 抽只要 {16 * 4} 帧，解码量降到 1/{30 / 4:.1f}")
+    for steps, clips, name in ((90000, 2e6, "第一代"), (252000, 22e6, "第二代")):
+        seen = steps * 3072
+        print(f"{name} {steps} 步 x 3072 = {seen / 1e8:.2f} 亿个片段，"
+              f"除以 {clips / 1e6:.0f} 百万段是 {seen / clips:.0f} 轮")
+    print(f"6.11 的序列长：15 步 x (256 画面 + 动作 + 状态) = {15 * 258} 个词元")

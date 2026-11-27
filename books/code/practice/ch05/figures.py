@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""第 5 章插图：多块掩码、掩码消融的三条曲线、像素目标与表征目标的对比。"""
+"""第 5 章插图：多块掩码、掩码消融的三条曲线、像素目标与表征目标的对比、
+十二条复现清单、与 MAE 的算力对比。"""
 import os
 import sys
 
@@ -303,6 +304,122 @@ def fig_pixel_vs_latent():
     return fs.save(fig, "practice", "ch05", "pixel-vs-latent")
 
 
+# ---------------------------------------------------------------- 图 5-4
+# 十二条复现清单，按装配顺序分成四段。文字是本章的整理，不是论文原表的复述。
+CHECKLIST = [
+    ("① 数据", fs.BLUE, [
+        (1, ["只用 ImageNet-1K", "训练集，不加颜色", "抖动与 mixup"]),
+        (2, ["224 像素配 patch", "14，448 配 16，", "记下网格大小"]),
+        (3, ["预训练不带 [cls]，", "评估靠 patch 的", "平均池化"]),
+    ]),
+    ("② 掩码", fs.ACCENT, [
+        (4, ["目标 4 块，面积", "0.15–0.2，长宽比", "0.75–1.5"]),
+        (5, ["上下文 0.85–1.0，", "长宽比 1，重叠", "部分整块挖掉"]),
+        (6, ["同卡掩码长度取齐，", "采样器写进", "collator"]),
+    ]),
+    ("③ 结构", fs.PURPLE, [
+        (7, ["预测器宽 384，深度", "按主干：B 6 层，", "L/H 12 层，G 16 层"]),
+        (8, ["目标端复制初始化，", "动量 0.996 线性", "升到 1.0"]),
+        (9, ["目标侧 detach，", "掩码打在目标端", "输出上"]),
+    ]),
+    ("④ 优化与评估", fs.GOLD, [
+        (10, ["AdamW，batch 2048，", "1e-4 升到 1e-3，", "预热 15 轮，", "余弦退到 1e-6"]),
+        (11, ["权重衰减 0.04", "线性升到 0.4"]),
+        (12, ["评估用目标编码器，", "报数带轮数、", "分辨率与协议"]),
+    ]),
+]
+
+
+def fig_checklist():
+    fig, ax = fs.canvas(7.2, 2.92)
+    n = len(CHECKLIST)
+    gap, x0 = 0.026, 0.008
+    w = (1 - 2 * x0 - gap * (n - 1)) / n
+    y0, h = 0.02, 0.95
+    for i, (title, color, items) in enumerate(CHECKLIST):
+        x = x0 + i * (w + gap)
+        fs.box(ax, x, y0, w, h, "", fc="#FFFFFF", ec=color, lw=1.1, rounded=0.012)
+        ax.add_patch(Rectangle((x + 0.005, y0 + h - 0.125), w - 0.010, 0.105,
+                               facecolor=color, alpha=0.11, lw=0, zorder=4))
+        fs.label(ax, x + w / 2, y0 + h - 0.072, title, fs=9.0, color=color, weight="bold")
+        yy = y0 + h - 0.155
+        for num, lines in items:
+            fs.label(ax, x + 0.013, yy, str(num), fs=7.6, color=color, weight="bold",
+                     ha="left", va="top")
+            fs.label(ax, x + 0.048, yy, "\n".join(lines), fs=6.8, color=fs.INK,
+                     ha="left", va="top")
+            yy -= 0.0605 * len(lines) + 0.042
+        if i:
+            fs.arrow(ax, (x - gap + 0.002, y0 + h - 0.072), (x - 0.003, y0 + h - 0.072),
+                     color=fs.FAINT, lw=1.0, ms=7)
+    return fs.save(fig, "practice", "ch05", "checklist")
+
+
+# ---------------------------------------------------------------- 图 5-5
+# (a)(b) 取自论文第 7 节的 7% 与 5 倍；(c) 的 1200 卡时取自摘要，
+# 另两根柱按 2.5 倍与 10 倍下界换算，是下限而非实测。
+def fig_compute_compare():
+    fig = plt.figure(figsize=(7.2, 2.75))
+
+    # (a) 单步耗时
+    ax1 = fig.add_axes([0.072, 0.20, 0.175, 0.56])
+    vals = [1.00, 1.07]
+    ax1.bar([0, 1], vals, color=[fs.FAINT, fs.ACCENT], width=0.52, zorder=3)
+    for x, v in zip([0, 1], vals):
+        ax1.text(x, v + 0.03, f"{v:.2f}", ha="center", va="bottom", fontsize=8.2,
+                 color=fs.INK)
+    ax1.set_xticks([0, 1]); ax1.set_xticklabels(["MAE", "I-JEPA"], fontsize=8.0)
+    ax1.set_ylim(0, 1.28); ax1.set_yticks([0, 0.5, 1.0])
+    ax1.set_ylabel("单步耗时（相对值）", fontsize=8.0, labelpad=3)
+    ax1.tick_params(labelsize=7.4, length=2.5, pad=2)
+    fs.clean(ax1)
+    ax1.text(0.5, 1.20, "+7%", ha="center", va="center", fontsize=8.0, color=fs.ACCENT,
+             weight="bold")
+    ax1.set_title("（a）一次迭代", fontsize=8.8, color=fs.INK, pad=7)
+
+    # (b) 收敛所需轮数
+    ax2 = fig.add_axes([0.352, 0.20, 0.175, 0.56])
+    ep = [1600, 300]
+    ax2.bar([0, 1], ep, color=[fs.FAINT, fs.ACCENT], width=0.52, zorder=3)
+    for x, v in zip([0, 1], ep):
+        ax2.text(x, v + 40, f"{v}", ha="center", va="bottom", fontsize=8.2, color=fs.INK)
+    ax2.set_xticks([0, 1]); ax2.set_xticklabels(["MAE", "I-JEPA"], fontsize=8.0)
+    ax2.set_ylim(0, 1980); ax2.set_yticks([0, 500, 1000, 1500])
+    ax2.set_ylabel("所需轮数（epoch）", fontsize=8.0, labelpad=3)
+    ax2.tick_params(labelsize=7.4, length=2.5, pad=2)
+    fs.clean(ax2)
+    ax2.text(0.5, 1830, "5.3 倍", ha="center", va="center", fontsize=8.0, color=fs.ACCENT,
+             weight="bold")
+    ax2.set_title("（b）迭代次数", fontsize=8.8, color=fs.INK, pad=7)
+
+    # (c) 总卡时，对数横轴
+    ax3 = fig.add_axes([0.660, 0.235, 0.325, 0.525])
+    rows = [("MAE  ViT-H/14", 12000, fs.FAINT, "≥12 000"),
+            ("iBOT  ViT-S/16", 3000, fs.MUTED, "≥3 000"),
+            ("I-JEPA  ViT-H/14", 1200, fs.ACCENT, "≤1 200")]
+    xlo = 600.0
+    for k, (name, v, col, tag) in enumerate(rows):
+        ax3.barh(k, v - xlo, left=xlo, height=0.46, color=col, zorder=3)
+        ax3.text(v * 1.10, k, tag, ha="left", va="center", fontsize=7.8, color=fs.INK)
+    ax3.axvline(1200, color=fs.ACCENT, lw=0.8, ls=(0, (3, 3)), zorder=2)
+    ax3.set_yticks(range(len(rows)))
+    ax3.set_yticklabels([r[0] for r in rows], fontsize=7.8)
+    ax3.set_xscale("log")
+    ax3.set_xlim(xlo, 42000)
+    ax3.set_xticks([1000, 3000, 10000, 30000])
+    ax3.set_xticklabels(["1 千", "3 千", "1 万", "3 万"])
+    ax3.set_xlabel("预训练总卡时（A100）", fontsize=8.0, labelpad=4)
+    ax3.tick_params(labelsize=7.4, length=2.5, pad=2, which="major")
+    ax3.minorticks_off()
+    fs.clean(ax3)
+    ax3.invert_yaxis()
+    ax3.set_title("（c）预训练总成本", fontsize=8.8, color=fs.INK, pad=7)
+
+    fig.text(0.660, 0.045, "MAE、iBOT 两柱为下界换算值，非实测",
+             ha="left", va="bottom", fontsize=7.0, color=fs.MUTED)
+    return fs.save(fig, "practice", "ch05", "compute-compare")
+
+
 def report():
     """正文引用的派生量：都由本脚本算出，不靠外部来源。"""
     n224_14 = (224 // 14) ** 2
@@ -313,6 +430,14 @@ def report():
     print(f"  patch 数倍数: {n448_16 / n224_14:.2f}")
     print(f"  batch 2048 / 16 卡: {2048 // 16}")
     print(f"  1600/600 = {1600 / 600:.1f}, 1600/300 = {1600 / 300:.1f}")
+    for N, p in [(224, 14), (384, 16), (448, 16)]:
+        g = N // p
+        r = g / 16.0
+        print(f"  {N}/patch{p}: 网格 {g}×{g} = {g * g} patch, "
+              f"保 patch 数 s'={0.15 / r ** 2:.3f}–{0.2 / r ** 2:.3f}, "
+              f"保像素面积 s'={0.15 / (N / 224) ** 2:.3f}–{0.2 / (N / 224) ** 2:.3f}")
+    print(f"  注意力成本比 (28/16)^4 = {(28 / 16) ** 4:.2f}")
+    print(f"  16 卡 × 72 小时 = {16 * 72} 卡时")
 
 
 if __name__ == "__main__":
@@ -320,3 +445,5 @@ if __name__ == "__main__":
     fig_mask_blocks()
     fig_mask_ablation()
     fig_pixel_vs_latent()
+    fig_checklist()
+    fig_compute_compare()

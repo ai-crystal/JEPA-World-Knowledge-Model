@@ -196,3 +196,157 @@ def fig_latent_planning():
 if __name__ == "__main__":
     fig_action_jepa()
     fig_latent_planning()
+
+
+# ---------------------------------------------------------------- 图 8-3 CEM 四轮
+def _cem_toy(n_iter=4, n_samples=32, n_elite=4, sd0=0.9, seed=3):
+    """二维玩具代价面上的 CEM 迭代，返回每一轮用到的采样分布与样本。"""
+    th = np.deg2rad(32.0)
+    rot = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
+    A = rot @ np.diag([1.0, 6.0]) @ rot.T
+    a_star = np.array([1.55, 0.85])
+
+    def cost(p):
+        q = p - a_star
+        return np.einsum("...i,ij,...j->...", q, A, q)
+
+    rng = np.random.default_rng(seed)
+    mu = np.zeros(2)
+    sd = np.array([sd0, sd0])
+    rounds = []
+    for _ in range(n_iter):
+        S = rng.normal(mu, sd, size=(n_samples, 2))
+        c = cost(S)
+        order = np.argsort(c)
+        elite = order[:n_elite]
+        rounds.append(dict(mu=mu.copy(), sd=sd.copy(), S=S, cost=c, elite=elite))
+        mu = S[elite].mean(axis=0)
+        sd = S[elite].std(axis=0)
+    return rounds, cost, a_star
+
+
+def fig_cem():
+    rounds, cost, a_star = _cem_toy()
+    for i, r in enumerate(rounds):
+        print("  round %d  mu (%.2f, %.2f)  sd (%.2f, %.2f)  best %.3f"
+              % (i + 1, r["mu"][0], r["mu"][1], r["sd"][0], r["sd"][1], r["cost"].min()))
+
+    fig, axes = plt.subplots(2, 2, figsize=(6.8, 5.9))
+    xs = np.linspace(-1.75, 3.25, 340)
+    ys = np.linspace(-1.05, 2.45, 340)
+    X, Y = np.meshgrid(xs, ys)
+    Z = cost(np.stack([X, Y], axis=-1))
+    levels = [0.1, 0.3, 0.7, 1.4, 2.5, 4.0, 6.0, 9.0, 13.0]
+
+    for k, (ax, r) in enumerate(zip(axes.ravel(), rounds)):
+        ax.contour(X, Y, Z, levels=levels, colors=["#D5DBE3"], linewidths=0.8, zorder=1)
+        ax.contourf(X, Y, Z, levels=[0, 0.1], colors=["#FBE6D8"], zorder=0)
+
+        ax.add_patch(plt.matplotlib.patches.Ellipse(
+            (r["mu"][0], r["mu"][1]), 2 * r["sd"][0], 2 * r["sd"][1],
+            facecolor="none", edgecolor=fs.BLUE, lw=1.4, zorder=4))
+        ax.scatter(r["mu"][0], r["mu"][1], s=44, marker="o", facecolor="white",
+                   edgecolor=fs.BLUE, linewidth=1.3, zorder=6)
+
+        mask = np.ones(len(r["S"]), dtype=bool)
+        mask[r["elite"]] = False
+        ax.scatter(r["S"][mask, 0], r["S"][mask, 1], s=12, color="#AAB2BE",
+                   linewidth=0, zorder=3)
+        ax.scatter(r["S"][r["elite"], 0], r["S"][r["elite"], 1], s=32,
+                   color=fs.ACCENT, edgecolor="white", linewidth=0.6, zorder=5)
+
+        ax.scatter(a_star[0], a_star[1], s=140, marker="*", color=fs.GOLD,
+                   edgecolor="white", linewidth=0.9, zorder=7)
+
+        ax.text(-1.62, 2.32, "第 %d 轮" % (k + 1), fontsize=9.4, color=fs.INK,
+                weight="bold", ha="left", va="top", zorder=8)
+        ax.text(-1.62, 2.04,
+                "均值 (%.2f, %.2f)　标准差 (%.2f, %.2f)"
+                % (r["mu"][0], r["mu"][1], r["sd"][0], r["sd"][1]),
+                fontsize=8.2, color=fs.MUTED, ha="left", va="top", zorder=8)
+
+        ax.set_xlim(-1.75, 3.25); ax.set_ylim(-1.05, 2.45)
+        ax.set_aspect("equal")
+        ax.set_xticks([-1, 0, 1, 2, 3]); ax.set_yticks([-1, 0, 1, 2])
+        ax.tick_params(labelsize=8.0, colors=fs.FAINT, length=2.5)
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+        for s in ("left", "bottom"):
+            ax.spines[s].set_color("#9CA3AF")
+        ax.text(-0.02, 1.035, "(" + "abcd"[k] + ")", transform=ax.transAxes,
+                fontsize=9.6, color=fs.MUTED, weight="bold", ha="left", va="bottom")
+        if k >= 2:
+            ax.set_xlabel("动作维度 1", fontsize=8.2, color=fs.MUTED, labelpad=2)
+        if k % 2 == 0:
+            ax.set_ylabel("动作维度 2", fontsize=8.2, color=fs.MUTED, labelpad=2)
+
+    fig.subplots_adjust(left=0.075, right=0.985, top=0.975, bottom=0.085,
+                        wspace=0.10, hspace=0.22)
+    fig.text(0.55, 0.012, "灰点为当轮 32 条候选，橙点为选中的 4 条，蓝色椭圆是一个标准差",
+             fontsize=8.0, color=fs.MUTED, ha="center", va="bottom")
+    return fs.save(fig, "basics", "ch08", "cem")
+
+
+# ---------------------------------------------------------------- 图 8-4 MPC 时序
+def fig_mpc_timeline():
+    T = 4                      # 规划时域（步）
+    fig, axes = plt.subplots(2, 1, figsize=(6.9, 4.3),
+                             gridspec_kw=dict(height_ratios=[1.25, 1.0], hspace=0.60))
+
+    def panel(ax, k_exec, n_plan, title, note, inner, ybot):
+        for j in range(n_plan):
+            t0 = j * k_exec
+            y = n_plan - j
+            ax.add_patch(plt.matplotlib.patches.FancyBboxPatch(
+                (t0 + 0.04, y - 0.27), T - 0.08, 0.54,
+                boxstyle="round,pad=0.02,rounding_size=0.06",
+                facecolor="#FDF0E6", edgecolor=fs.ACCENT, lw=0.9, zorder=2))
+            ax.add_patch(plt.matplotlib.patches.FancyBboxPatch(
+                (t0 + 0.04, y - 0.27), k_exec - 0.08, 0.54,
+                boxstyle="round,pad=0.02,rounding_size=0.06",
+                facecolor=fs.ACCENT, edgecolor=fs.ACCENT, lw=0.9, alpha=0.92, zorder=3))
+            ax.text(t0 + k_exec / 2, y, inner, fontsize=8.2, color="white",
+                    ha="center", va="center", zorder=4)
+            if T - k_exec >= 2.0:
+                ax.text(t0 + k_exec + (T - k_exec) / 2, y, "只规划不执行", fontsize=8.2,
+                        color=fs.ACCENT, ha="center", va="center", zorder=4)
+            ax.scatter([t0], [y - 0.47], s=26, marker="o", color=fs.BLUE,
+                       edgecolor="white", linewidth=0.7, zorder=5, clip_on=False)
+            ax.plot([t0, t0], [y - 0.42, y - 0.27], color=fs.BLUE, lw=0.8, zorder=1)
+
+        ax.set_xlim(-0.35, 11.2)
+        ax.set_ylim(ybot, n_plan + 0.80)
+        ax.set_yticks([n_plan - j for j in range(n_plan)])
+        ax.set_yticklabels(["第 %d 次规划" % (j + 1) for j in range(n_plan)], fontsize=8.4)
+        ax.set_xticks(np.arange(0, 11, 2))
+        ax.tick_params(axis="x", labelsize=8.4)
+        ax.tick_params(axis="y", length=0)
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+        ax.spines["left"].set_color("#D1D5DB")
+        ax.spines["bottom"].set_color("#9CA3AF")
+        ax.set_xlabel("环境步（蓝点为重新观测、重新编码的位置）", fontsize=8.2,
+                      color=fs.MUTED, labelpad=3)
+        ax.text(-0.008, 1.10, title, transform=ax.transAxes, fontsize=9.6,
+                color=fs.INK, weight="bold", ha="left", va="bottom")
+        ax.text(1.0, 1.10, note, transform=ax.transAxes, fontsize=8.2,
+                color=fs.MUTED, ha="right", va="bottom")
+
+    panel(axes[0], 1, 4, "(a) 每步重规划：k = 1", "走一步，重算一次", "执行", 0.35)
+    panel(axes[1], 3, 2, "(b) 每三步重规划：k = 3", "规划次数减半，纠正也减半",
+          "执行 3 步，中途不纠正", -0.78)
+
+    ax = axes[0]
+    ax.annotate("", xy=(0.12, 4.50), xytext=(3.88, 4.50),
+                arrowprops=dict(arrowstyle="<->", color=fs.ACCENT, lw=0.9))
+    ax.text(2.0, 4.56, "时域 $T$ = 4 步", fontsize=8.4, color=fs.ACCENT,
+            ha="center", va="bottom")
+
+    ax = axes[1]
+    ax.annotate("蓝点之间的三步靠开环执行，漂移无人纠正", xy=(1.45, 1.72), xytext=(0.62, -0.30),
+                fontsize=8.2, color=fs.PURPLE, ha="left", va="center",
+                arrowprops=dict(arrowstyle="-|>", color=fs.PURPLE, lw=0.9,
+                                connectionstyle="arc3,rad=0.18", shrinkA=2, shrinkB=3))
+
+    fig.subplots_adjust(left=0.145, right=0.985, top=0.925, bottom=0.115)
+    return fs.save(fig, "basics", "ch08", "mpc-timeline")

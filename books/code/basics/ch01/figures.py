@@ -109,6 +109,99 @@ def fig_shadow():
     return fs.save(fig, "basics", "ch01", "shadow")
 
 
+def fig_attn_cost():
+    """注意力项与权重项随上下文长度的相对增长（按公式推算）。"""
+    d = 4096                      # 隐藏维度，取一个常见的中等宽度
+    n = np.logspace(np.log10(512), np.log10(262144), 400)
+    n_cross = 4 * d               # 两项相当的位置
+    lin = n / 512.0                       # 权重矩阵乘：与长度成正比
+    quad = (n / n_cross) ** 2 * (n_cross / 512.0)   # 注意力：与长度平方成正比
+
+    fig, ax = plt.subplots(figsize=(6.6, 3.9))
+    fs.clean(ax, grid=False, spines=("left", "bottom"))
+    ax.set_xscale("log"); ax.set_yscale("log")
+
+    ax.plot(n, lin, color=fs.BLUE, lw=1.7, label="权重矩阵乘（与长度成正比）")
+    ax.plot(n, quad, color=fs.ACCENT, lw=1.7, label="注意力打分与加权（与长度平方成正比）")
+    ax.plot(n, lin + quad, color=fs.INK, lw=1.0, ls=(0, (5, 3)), label="两者之和")
+
+    ax.plot([n_cross, n_cross], [0.5, 32], color=fs.FAINT, lw=0.9, ls=(0, (2, 3)))
+    ax.scatter([n_cross], [32], s=26, color=fs.ACCENT, zorder=5,
+               edgecolor="white", linewidth=0.8)
+    ax.text(1000, 1100, "两项在隐藏维度的四倍附近相当", fontsize=8.2,
+            color=fs.MUTED, ha="left", va="center")
+    ax.annotate("d=4096 时约 1.6 万词元",
+                xy=(n_cross, 32), xytext=(1000, 560),
+                fontsize=8.2, color=fs.MUTED, ha="left", va="center",
+                arrowprops=dict(arrowstyle="-|>", color=fs.FAINT, lw=0.8,
+                                connectionstyle="arc3,rad=-0.12"))
+
+    ax.set_xlabel("上下文长度（词元）")
+    ax.set_ylabel("处理一条序列的相对算力")
+    ax.set_xticks([512, 2048, 8192, 32768, 131072])
+    ax.set_xticklabels(["512", "2k", "8k", "32k", "128k"])
+    ax.set_xlim(512, 262144)
+    ax.set_ylim(0.5, 2.0e4)
+    ax.legend(loc="upper left", fontsize=8.2, handlelength=1.8)
+    ax.text(0.975, 0.30, "按公式推算，只画相对量级", transform=ax.transAxes,
+            fontsize=8.2, color=fs.MUTED, ha="right")
+    return fs.save(fig, "basics", "ch01", "attn-cost")
+
+
+def fig_tokenization():
+    """同一条中文句子在两种词表下的切分对比。"""
+    large = ["我们", "把", "冰箱", "里的", "牛奶", "倒进", "杯子", "里"]
+    small = list("我们把冰箱里的牛奶倒进杯子里")
+
+    fig, ax = fs.canvas(6.9, 3.0)
+    x0, span = 0.13, 0.80
+
+    def row(tokens, ytop, h, fc, ec, fs_text):
+        total = sum(len(t) for t in tokens)
+        x = x0
+        for i, t in enumerate(tokens):
+            w = span * len(t) / total
+            ax.add_patch(Rectangle((x, ytop - h), w, h, facecolor=fc, edgecolor=ec,
+                                   lw=1.0, zorder=3))
+            fs.label(ax, x + w / 2, ytop - h / 2, t, fs=fs_text,
+                     color=fs.INK, z=4)
+            x += w
+
+    row(large, 0.86, 0.18, "#DBE7FF", fs.BLUE, 9.5)
+    row(small, 0.52, 0.18, "#FDE6D8", fs.ACCENT, 8.8)
+
+    fs.label(ax, x0, 0.925, "词表较大：8 个词元", fs=9, color=fs.BLUE, ha="left")
+    fs.label(ax, x0, 0.585, "词表较小：14 个词元", fs=9, color=fs.ACCENT, ha="left")
+
+    # 两行左右端对齐的提示
+    for xv in (x0, x0 + span):
+        ax.plot([xv, xv], [0.48, 0.90], color=fs.GRID, lw=0.9, ls=(0, (2, 3)), zorder=1)
+    fs.label(ax, x0 + span / 2, 0.27, "同一句话，同样的十四个字",
+             fs=8.6, color=fs.MUTED)
+    fs.label(ax, x0 + span / 2, 0.16, "词元数差近一倍，后续每一步都要多算一遍",
+             fs=8.6, color=fs.MUTED)
+    return fs.save(fig, "basics", "ch01", "tokenization")
+
+
+def report_numbers():
+    """正文里出现的、需要由公式算出来的数字。"""
+    d = 4096
+    n_cross = 4 * d
+    # 6ND 粗估：7B 参数、2 万亿词元
+    N, D = 7e9, 2e12
+    flops = 6 * N * D
+    peak = 312e12            # A100 bf16 稠密算力峰值
+    util = 0.40              # 按四成利用率计
+    sec = flops / (peak * util)
+    print(f"隐藏维度 {d} 时，两项相当的序列长度约 {n_cross} 词元")
+    print(f"6ND = {flops:.2e} FLOPs；按 {peak/1e12:.0f} TFLOPS、利用率 {util:.0%}，"
+          f"折合 {sec/86400:.0f} GPU 天（约 {sec/86400/365:.0f} GPU 年）")
+    print(f"单卡若是 40 天，需要 {sec/86400/40:.0f} 张卡同时跑四十天")
+
+
 if __name__ == "__main__":
     fig_next_token()
     fig_shadow()
+    fig_attn_cost()
+    fig_tokenization()
+    report_numbers()

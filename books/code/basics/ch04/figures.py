@@ -134,6 +134,161 @@ def fig_infonce():
     return fs.save(fig, "basics", "ch04", "infonce")
 
 
+def fig_landscape():
+    """损失面示意：只有一个不变项时是一整片平坦谷底，加上信息约束后谷底移到有结构的一侧。"""
+    gx, gy = np.meshgrid(np.linspace(-2.60, 2.60, 560), np.linspace(-2.10, 2.10, 420))
+
+    # (a) 只有不变项：中间的谷底近乎水平，损失只在外缘才抬起来
+    za = 0.04 + 0.42 * ((np.abs(gx) / 2.35) ** 6 + (np.abs(gy) / 1.95) ** 6)
+    # (b) 加上信息约束：谷底移到右侧，塌缩一侧被抬成陡坡
+    zb = (0.05 + 0.46 * (((gx - 0.78) / 1.45) ** 2 + (gy / 1.45) ** 2)
+          + 1.30 * np.exp(-((gx + 1.78) / 0.34) ** 2))
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.05))
+    fig.subplots_adjust(left=0.035, right=0.985, bottom=0.170, top=0.905, wspace=0.075)
+
+    la = np.linspace(0.04, 0.62, 11)
+    axes[0].contourf(gx, gy, za, levels=la, cmap="Blues_r", alpha=0.90, extend="max", zorder=1)
+    axes[0].contour(gx, gy, za, levels=la, colors="#8496AD", linewidths=0.45, zorder=2)
+
+    lb = np.linspace(0.05, 1.95, 13)
+    axes[1].contourf(gx, gy, zb, levels=lb, cmap="Blues_r", alpha=0.90, extend="max", zorder=1)
+    axes[1].contour(gx, gy, zb, levels=lb, colors="#8496AD", linewidths=0.45, zorder=2)
+
+    for ax in axes:
+        ax.set_xlim(-2.60, 2.60)
+        ax.set_ylim(-2.10, 2.10)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for s in ("top", "right", "left", "bottom"):
+            ax.spines[s].set_color(fs.FAINT)
+        ax.set_xlabel("参数方向：嵌入越往右越伸展开", fontsize=8.4, color=fs.MUTED, labelpad=4)
+
+    axes[0].set_title("(a) 只有不变项", fontsize=9.6, color=fs.INK, pad=5)
+    axes[1].set_title("(b) 加入信息约束", fontsize=9.6, color=fs.INK, pad=5)
+    axes[0].set_ylabel("参数的另一个方向", fontsize=8.4, color=fs.MUTED, labelpad=4)
+
+    # (a) 整个谷底一样低，塌缩点只是其中一个位置
+    axes[0].text(0.35, 1.28, "整片谷底都接近零，梯度也接近零",
+                 fontsize=8.4, color=fs.INK, ha="center", va="center",
+                 bbox=dict(fc="white", ec="none", alpha=0.80, pad=2.4), zorder=8)
+    axes[0].plot([-1.75], [0.0], marker="o", ms=6.5, mfc="white", mec=fs.ACCENT,
+                 mew=1.5, zorder=7)
+    axes[0].annotate("常数解", xy=(-1.75, -0.14), xytext=(-2.42, -1.52),
+                     fontsize=8.6, color=fs.ACCENT, ha="left", va="center",
+                     arrowprops=dict(arrowstyle="-|>", color=fs.ACCENT, lw=0.9,
+                                     shrinkA=2, shrinkB=4, mutation_scale=8), zorder=7)
+
+    # (b) 谷底在右侧，塌缩一侧是陡坡
+    axes[1].annotate("谷底移到有结构的一侧", xy=(0.78, -0.12), xytext=(0.55, -1.62),
+                     fontsize=8.4, color=fs.ACCENT, ha="center", va="center",
+                     arrowprops=dict(arrowstyle="-|>", color=fs.ACCENT, lw=1.1,
+                                     shrinkA=2, shrinkB=3, mutation_scale=8), zorder=6)
+    axes[1].annotate("塌缩区被抬成陡坡", xy=(-1.80, 0.62), xytext=(-2.42, 1.62),
+                     fontsize=8.4, color=fs.INK, ha="left", va="center",
+                     arrowprops=dict(arrowstyle="-|>", color=fs.INK, lw=1.0,
+                                     shrinkA=2, shrinkB=3, mutation_scale=8), zorder=6)
+    axes[1].plot([-1.75], [0.0], marker="o", ms=6.5, mfc="white", mec=fs.ACCENT,
+                 mew=1.5, zorder=7)
+    axes[1].annotate("常数解", xy=(-1.75, -0.14), xytext=(-2.42, -1.30),
+                     fontsize=8.6, color=fs.FAINT, ha="left", va="center",
+                     arrowprops=dict(arrowstyle="-", color=fs.FAINT, lw=0.8,
+                                     shrinkA=2, shrinkB=4), zorder=8)
+
+    # (b) 谷底在右侧，塌缩一侧是陡坡
+    axes[1].annotate("谷底移到有结构的一侧", xy=(0.78, -0.12), xytext=(0.55, -1.62),
+                     fontsize=8.4, color=fs.ACCENT, ha="center", va="center",
+                     arrowprops=dict(arrowstyle="-|>", color=fs.ACCENT, lw=1.1,
+                                     shrinkA=2, shrinkB=3, mutation_scale=8), zorder=6)
+    axes[1].annotate("塌缩区被抬成陡坡", xy=(-1.80, 0.62), xytext=(-2.42, 1.62),
+                     fontsize=8.4, color=fs.INK, ha="left", va="center",
+                     arrowprops=dict(arrowstyle="-|>", color=fs.INK, lw=1.0,
+                                     shrinkA=2, shrinkB=3, mutation_scale=8), zorder=6)
+    axes[1].plot([-1.75], [0.0], marker="o", ms=6.5, mfc="white", mec=fs.ACCENT,
+                 mew=1.5, zorder=7)
+
+    return fs.save(fig, "basics", "ch04", "loss-landscape")
+
+
+def effective_rank(Z, center=True):
+    """有效秩：归一化奇异值的熵再取指数。center=False 用于演示不减均值的后果。"""
+    if center:
+        Z = Z - Z.mean(axis=0, keepdims=True)
+    s = np.linalg.svd(Z, compute_uv=False)
+    p = s / s.sum()
+    p = p[p > 0]
+    return float(np.exp(-(p * np.log(p)).sum()))
+
+
+def rank_probe():
+    """正文引用的几个有效秩参照值，全部在这里算出。"""
+    rng = np.random.default_rng(20)
+    low = np.zeros((512, 128))
+    low[:, :8] = rng.normal(0.0, 1.0, (512, 8))
+    print("  有效秩 8 个方向:", round(effective_rank(low), 2))
+
+    d = np.arange(1, 129)
+    dec = np.random.default_rng(21).normal(0.0, 1.0, (512, 128)) * 0.7 ** d
+    print("  有效秩 按 0.7 衰减:", round(effective_rank(dec), 2))
+
+    rank1 = (np.random.default_rng(22).normal(0.0, 1.0, (512, 1))
+             @ np.random.default_rng(23).normal(0.0, 1.0, (1, 128)))
+    print("  有效秩 秩为 1:", round(effective_rank(rank1), 2))
+
+    full = np.random.default_rng(24).normal(0.0, 1.0, (512, 128))
+    print("  有效秩 满 128 维:", round(effective_rank(full), 2))
+    print("  有效秩 不减均值（整体平移 8）:", round(effective_rank(full + 8.0, center=False), 2))
+
+
+def fig_effective_rank():
+    """有效秩随训练步数的三条曲线（示意数据，按各类方法的典型行为构造）。"""
+    d = 256
+    rng = np.random.default_rng(7)
+    steps = np.logspace(2, np.log10(60000), 420)
+
+    def smooth(y, k=9):
+        w = np.ones(k) / k
+        return np.convolve(np.pad(y, (k // 2, k // 2), mode="edge"), w, mode="valid")
+
+    bad = d * (0.93 * np.exp(-steps / 3200) + 0.008)
+    neg = d * (0.735 + 0.175 * np.exp(-steps / 9000))
+    wht = d * (0.800 + 0.075 * np.exp(-steps / 6000) + 0.0000011 * steps)
+
+    bad = smooth(bad + rng.normal(0, 1.1, steps.size), 13)
+    neg = smooth(neg + rng.normal(0, 2.4, steps.size), 19)
+    wht = smooth(wht + rng.normal(0, 2.0, steps.size), 19)
+
+    fig = plt.figure(figsize=(6.9, 3.25))
+    ax = fig.add_axes([0.098, 0.185, 0.870, 0.760])
+    ax.axhline(d, color=fs.FAINT, lw=0.9, ls=(0, (4, 3)), zorder=1)
+    ax.plot(steps, wht, color=fs.BLUE, lw=1.9, zorder=4)
+    ax.plot(steps, neg, color=fs.GREEN, lw=1.9, zorder=4)
+    ax.plot(steps, bad, color=fs.ACCENT, lw=1.9, zorder=4)
+
+    ax.set_xscale("log")
+    ax.set_xlim(1e2, 6.4e4)
+    ax.set_ylim(0, 292)
+    ax.set_yticks([0, 64, 128, 192, 256])
+    ax.set_xticks([1e2, 1e3, 1e4, 6e4])
+    ax.set_xticklabels(["100", "1k", "10k", "60k"])
+    ax.set_xlabel("训练步数（对数刻度）", fontsize=9.2, labelpad=5)
+    ax.set_ylabel("有效秩（相当于几个方向）", fontsize=9.2, labelpad=5)
+    fs.clean(ax, grid=True)
+
+    ax.text(1.1e2, d + 8, "维度上限 256", fontsize=8.3, color=fs.FAINT, ha="left", va="bottom")
+    ax.text(6.2e4, wht[-1] + 12, "白化", fontsize=9.0, color=fs.BLUE, ha="right", va="bottom")
+    ax.text(6.2e4, neg[-1] - 14, "负样本", fontsize=9.0, color=fs.GREEN, ha="right", va="top")
+    ax.annotate("无约束", xy=(4.2e4, bad[-1] + 4), xytext=(1.05e4, 30),
+                fontsize=9.0, color=fs.ACCENT, ha="left", va="center",
+                arrowprops=dict(arrowstyle="-|>", color=fs.ACCENT, lw=1.0,
+                                shrinkA=3, shrinkB=2, mutation_scale=8))
+
+    rank_probe()
+    return fs.save(fig, "basics", "ch04", "effective-rank")
+
+
 if __name__ == "__main__":
     fig_states()
     fig_infonce()
+    fig_landscape()
+    fig_effective_rank()

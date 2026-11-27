@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""第 9 章插图：时空 tubelet 与掩码、V-JEPA 2 的三段配方与规划回路。"""
+"""第 6 章插图：时空 tubelet 与掩码、V-JEPA 2 的三段配方与规划回路。"""
 import os
 import sys
 
@@ -192,6 +192,159 @@ def fig_pipeline():
     return fs.save(fig, "basics", "ch06", "vjepa2-pipeline")
 
 
+# ---------------------------------------------------------------- 图 6-3
+def fig_fusion():
+    fig = plt.figure(figsize=(7.0, 3.25))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0.22, 1); ax.axis("off")
+
+    cw, ch, gx = 0.024, 0.040, 0.005
+    fcol = [fs.BLUE, fs.ACCENT, fs.GREEN]
+    light = ["#DCE6FB", "#FBE0D2", "#D6EDE4"]
+
+    # ---------------- (a) 早融合
+    x0 = 0.040
+    fs.label(ax, 0.168, 0.918, "(a) 早融合", fs=9.4, color=fs.INK, weight="bold")
+    for i in range(9):
+        k = i // 3
+        ax.add_patch(Rectangle((x0 + i * (cw + gx), 0.620), cw, ch,
+                               facecolor=light[k], edgecolor=fcol[k], lw=0.7, zorder=3))
+    for k in range(3):
+        xa = x0 + 3 * k * (cw + gx)
+        xb = xa + 3 * cw + 2 * gx
+        fs.bracket(ax, xa, xb, 0.572, "", color=fcol[k])
+        fs.label(ax, (xa + xb) / 2, 0.538, "帧 %d" % (k + 1), fs=7.4, color=fcol[k])
+    xa, xb = x0, x0 + 9 * cw + 8 * gx
+    fs.bracket(ax, xa, xb, 0.706, "", color=fs.MUTED)
+    fs.label(ax, (xa + xb) / 2, 0.734, "一条序列，每两个词元都算相关", fs=7.6,
+             color=fs.MUTED)
+    fs.label(ax, 0.168, 0.402, "帧与帧的边界只剩位置编码这一条线索", fs=7.6,
+             color=fs.MUTED)
+    fs.label(ax, 0.168, 0.352, "注意力之后，时间与空间已经混在一起", fs=7.6,
+             color=fs.MUTED)
+
+    # ---------------- (b) 晚融合
+    fs.label(ax, 0.500, 0.918, "(b) 晚融合", fs=9.4, color=fs.INK, weight="bold")
+    xb0 = 0.424
+    for k, yy in enumerate([0.690, 0.590, 0.490]):
+        for i in range(3):
+            ax.add_patch(Rectangle((xb0 + i * (cw + gx), yy), cw, ch,
+                                   facecolor=light[k], edgecolor=fcol[k], lw=0.7, zorder=3))
+        fs.arrow(ax, (xb0 + 3 * cw + 2 * gx + 0.007, yy + ch / 2),
+                 (0.538, yy + ch / 2), color=fcol[k], lw=0.8, ms=7)
+    fs.box(ax, 0.542, 0.472, 0.084, 0.256, "", fc="#FFFFFF", ec=fs.MUTED, lw=0.9)
+    fs.label(ax, 0.584, 0.600, "各自编码\n各自池化", fs=7.6, color=fs.MUTED)
+    fs.arrow(ax, (0.584, 0.466), (0.584, 0.414), color=fs.MUTED, lw=0.9, ms=7)
+    fs.box(ax, 0.528, 0.344, 0.112, 0.070, "合并，再预测", fc="#F7F8FA",
+           ec=fs.MUTED, lw=0.9, fs=7.6)
+    fs.label(ax, 0.500, 0.284, "帧内的冗余没法被时间注意力用上", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.500, 0.236, "好处是每一帧可以独立并行", fs=7.6, color=fs.MUTED)
+
+    # ---------------- (c) 分解注意力
+    fs.label(ax, 0.835, 0.918, "(c) 分解注意力", fs=9.4, color=fs.INK, weight="bold")
+    cw2, ch2, gg, vg = 0.032, 0.042, 0.032, 0.056
+    gx0, gy0 = 0.742, 0.766
+    for r in range(3):
+        for c in range(3):
+            ax.add_patch(Rectangle((gx0 + c * (cw2 + gg), gy0 - r * (ch2 + vg)), cw2,
+                                   ch2, facecolor=light[r], edgecolor=fcol[r], lw=0.7,
+                                   zorder=3))
+    # 行内箭头只画在格子之间的缝里
+    for r in range(3):
+        yy = gy0 - r * (ch2 + vg) + ch2 / 2
+        for c in range(2):
+            xl = gx0 + c * (cw2 + gg) + cw2 + 0.003
+            ax.annotate("", xy=(xl + gg - 0.006, yy), xytext=(xl, yy),
+                        arrowprops=dict(arrowstyle="<|-|>", color=fs.BLUE, lw=0.7,
+                                        mutation_scale=6))
+    for c in range(3):
+        xx = gx0 + c * (cw2 + gg) + cw2 / 2
+        for r in range(2):
+            yt = gy0 - r * (ch2 + vg) - 0.003
+            ax.annotate("", xy=(xx, yt - vg + 0.006), xytext=(xx, yt),
+                        arrowprops=dict(arrowstyle="<|-|>", color=fs.ACCENT, lw=0.7,
+                                        mutation_scale=6))
+    fs.label(ax, 0.818, 0.430, "蓝色走行，橙色走列", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.818, 0.380, "一遍在帧内，一遍在同一位置跨帧", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.818, 0.330, "开销随帧数线性增长", fs=7.6, color=fs.MUTED)
+    return fs.save(fig, "basics", "ch06", "fusion")
+
+
+# ---------------------------------------------------------------- 图 6-4
+def fig_action():
+    fig = plt.figure(figsize=(7.0, 3.10))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 1); ax.set_ylim(0.14, 1); ax.axis("off")
+
+    # ---------- 左：执行器与位姿轴
+    fs.label(ax, 0.130, 0.936, "末端的位姿 $\\mathbf{s}_k$", fs=8.8, color=fs.INK,
+             weight="bold")
+    for xf, xw in ((0.062, 0.014), (0.104, 0.014)):
+        ax.add_patch(Rectangle((xf, 0.560), xw, 0.185, facecolor="#E8EBEF",
+                               edgecolor=fs.INK, lw=0.9, zorder=4))
+    ax.add_patch(Rectangle((0.056, 0.740), 0.070, 0.036, facecolor="#D7DCE3",
+                           edgecolor=fs.INK, lw=0.9, zorder=4))
+    ax.add_patch(Rectangle((0.077, 0.776), 0.028, 0.062, facecolor="#C9CFD8",
+                           edgecolor=fs.INK, lw=0.9, zorder=4))
+    ax.annotate("", xy=(0.052, 0.648), xytext=(0.008, 0.648),
+                arrowprops=dict(arrowstyle="<|-|>", color=fs.GREEN, lw=0.9,
+                                mutation_scale=7))
+    fs.label(ax, 0.032, 0.618, "开合", fs=7.4, color=fs.GREEN)
+
+    # ---------- 坐标轴与姿态
+    p = (0.205, 0.520)
+    ax.annotate("", xy=(p[0] + 0.112, p[1] + 0.014), xytext=p,
+                arrowprops=dict(arrowstyle="-|>", color=fs.BLUE, lw=1.1, mutation_scale=8))
+    fs.label(ax, p[0] + 0.124, p[1] + 0.012, "$\\Delta x$", fs=8.2, color=fs.BLUE, ha="left")
+    ax.annotate("", xy=(p[0], p[1] + 0.108), xytext=p,
+                arrowprops=dict(arrowstyle="-|>", color=fs.BLUE, lw=1.1, mutation_scale=8))
+    fs.label(ax, p[0], p[1] + 0.130, "$\\Delta y$", fs=8.2, color=fs.BLUE)
+    ax.annotate("", xy=(p[0] - 0.074, p[1] - 0.072), xytext=p,
+                arrowprops=dict(arrowstyle="-|>", color=fs.BLUE, lw=1.1, mutation_scale=8))
+    fs.label(ax, p[0] - 0.082, p[1] - 0.086, "$\\Delta z$", fs=8.2, color=fs.BLUE, ha="right")
+    ax.scatter([p[0]], [p[1]], s=18, color=fs.INK, zorder=6)
+    from matplotlib.patches import Arc
+    ax.add_patch(Arc(p, 0.170, 0.136, theta1=6, theta2=96, color=fs.ACCENT, lw=1.0,
+                     zorder=5))
+    ax.annotate("", xy=(p[0] + 0.020, p[1] + 0.068), xytext=(p[0] + 0.032, p[1] + 0.053),
+                arrowprops=dict(arrowstyle="-|>", color=fs.ACCENT, lw=1.0, mutation_scale=7))
+    fs.label(ax, 0.246, 0.610, "姿态 3 维", fs=7.6, color=fs.ACCENT, ha="left")
+    fs.label(ax, 0.130, 0.330, "位置以基座为原点，单位是米", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.130, 0.276, "姿态是绕三个轴的外旋欧拉角", fs=7.6, color=fs.MUTED)
+
+    # ---------- 右：7 维动作向量
+    fs.label(ax, 0.700, 0.936, "一个动作 $\\mathbf{a}_k$", fs=8.8, color=fs.INK,
+             weight="bold")
+    labs = ["$\\Delta x$", "$\\Delta y$", "$\\Delta z$",
+            "$\\Delta\\phi$", "$\\Delta\\theta$", "$\\Delta\\psi$", "$g$"]
+    cols = [fs.BLUE] * 3 + [fs.ACCENT] * 3 + [fs.GREEN]
+    fcs = ["#DCE6FB"] * 3 + ["#FBE0D2"] * 3 + ["#D6EDE4"]
+    w, h, gg2, x0c = 0.058, 0.086, 0.007, 0.500
+    for i in range(7):
+        x = x0c + i * (w + gg2)
+        ax.add_patch(Rectangle((x, 0.640), w, h, facecolor=fcs[i], edgecolor=cols[i],
+                               lw=1.0, zorder=3))
+        fs.label(ax, x + w / 2, 0.683, labs[i], fs=8.4, color=cols[i])
+    groups = [((x0c, x0c + 3 * w + 2 * gg2), "位置增量 3 维", fs.BLUE),
+              ((x0c + 3 * (w + gg2), x0c + 6 * w + 5 * gg2), "姿态增量 3 维", fs.ACCENT),
+              ((x0c + 6 * (w + gg2), x0c + 7 * w + 6 * gg2), "夹爪 1 维", fs.GREEN)]
+    for (a, b), txt, c in groups:
+        fs.bracket(ax, a, b, 0.756, txt, color=c, fs=7.4, dy=0.030)
+    fs.label(ax, x0c + 1.5 * (w + gg2), 0.598, "米", fs=7.2, color=fs.MUTED)
+    fs.label(ax, x0c + 4.5 * (w + gg2), 0.598, "弧度", fs=7.2, color=fs.MUTED)
+    fs.label(ax, x0c + 6.5 * (w + gg2), 0.598, "0 到 1", fs=7.2, color=fs.MUTED)
+
+    fs.label(ax, 0.700, 0.494, "$\\mathbf{a}_k = \\mathbf{s}_{k+1} - \\mathbf{s}_k$", fs=9.6)
+    fs.label(ax, 0.700, 0.410, "同一个增量，从不同起点出发会落到不同位置", fs=7.6,
+             color=fs.MUTED)
+    fs.label(ax, 0.700, 0.358, "所以动作必须和当前状态一起送进预测器", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.700, 0.268, "换成关节角，维度与量程随机械臂而变", fs=7.6, color=fs.MUTED)
+    fs.label(ax, 0.700, 0.216, "末端位姿写在任务空间里，跨本体通用", fs=7.6, color=fs.MUTED)
+    return fs.save(fig, "basics", "ch06", "action-vector")
+
+
 if __name__ == "__main__":
     fig_tubelet()
     fig_pipeline()
+    fig_fusion()
+    fig_action()

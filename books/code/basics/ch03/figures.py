@@ -154,6 +154,100 @@ def fig_pull_sets():
     return fs.save(fig, "basics", "ch03", "pull-sets")
 
 
+def fig_pretext():
+    """四类早期代理任务在“语义层级—像素追责”平面上的位置。
+
+    两个坐标轴都是定序判断，不是测出来的连续量，点的位置按各任务答案的模态给出。
+    """
+    fig, ax = plt.subplots(figsize=(6.9, 4.0))
+    fig.subplots_adjust(left=0.105, right=0.985, bottom=0.130, top=0.975)
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+    fs.clean(ax, grid=False, spines=("left", "bottom"))
+    ax.set_xticks([0.05, 0.95])
+    ax.set_xticklabels(["低", "高"], fontsize=9.4)
+    ax.set_yticks([0.05, 0.95])
+    ax.set_yticklabels(["低", "高"], fontsize=9.4)
+    ax.set_xlabel("目标要求的语义层级", fontsize=9.6, labelpad=7)
+    ax.set_ylabel("目标对像素的追责程度", fontsize=9.6, labelpad=8)
+
+    items = [("旋转预测", "四类分类", 0.17, 0.13, fs.GOLD),
+             ("拼图", "九块排列", 0.36, 0.33, fs.TEAL),
+             ("上色", "两条颜色通道", 0.56, 0.62, fs.GREEN),
+             ("补全", "整片像素", 0.31, 0.865, fs.ACCENT)]
+    for name, sub, x, y, c in items:
+        ax.scatter([x], [y], s=105, color=c, edgecolor="white", linewidth=1.3, zorder=6)
+        fs.label(ax, x + 0.038, y + 0.042, name, fs=9.6, color=c, ha="left", va="bottom",
+                 weight="bold")
+        fs.label(ax, x + 0.038, y - 0.030, sub, fs=7.9, color=fs.MUTED, ha="left", va="top")
+
+    # 后来填上右下角空档的那条路线，用空心点与早期任务区分
+    ax.scatter([0.905], [0.105], s=120, facecolor="white", edgecolor=fs.PURPLE,
+               linewidth=1.5, zorder=6)
+    fs.label(ax, 0.872, 0.170, "联合嵌入预测", fs=9.6, color=fs.PURPLE, ha="right",
+             va="bottom", weight="bold")
+    fs.label(ax, 0.872, 0.098, "不重建，只对齐向量", fs=7.9, color=fs.MUTED, ha="right",
+             va="top")
+
+    return fs.save(fig, "basics", "ch03", "pretext")
+
+
+def fig_temperature_simclr():
+    """温度与批大小的耦合：SimCLR 附录 B.8 在 CIFAR-10 上的读数。
+
+    原图只给柱高不标数值，这里按柱高与纵轴刻度换算，误差约十分之一个点。
+    """
+    batch = np.array([256, 512, 1024, 2048, 4096])
+    x = np.arange(len(batch))
+    # (a) 300 轮以内；(b) 300 轮以上
+    short01 = np.array([87.6, 88.9, 89.7, 90.1, 89.6])
+    short05 = np.array([88.2, 89.0, 89.3, 89.2, 88.3])
+    long01 = np.array([92.0, 92.5, 92.8, 93.0, 93.0])
+    long05 = np.array([93.2, 93.4, 93.6, 93.6, 93.3])
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.25))
+    fig.subplots_adjust(left=0.098, right=0.985, top=0.895, bottom=0.235, wspace=0.285)
+
+    panels = [(axes[0], short01, short05, "(a) 训练 300 轮以内", 86.7, 90.7),
+              (axes[1], long01, long05, "(b) 训练 300 轮以上", 91.3, 94.2)]
+    for ax, y01, y05, tag, lo, hi in panels:
+        fs.clean(ax, grid=True, spines=("left", "bottom"))
+        ax.set_xlim(-0.32, 4.62)
+        ax.set_ylim(lo, hi)
+        ax.set_xticks(x)
+        ax.set_xticklabels([str(b) for b in batch], fontsize=8.4)
+        ax.tick_params(axis="y", labelsize=8.4)
+        ax.set_xlabel("批大小", fontsize=9.2, labelpad=5)
+        ax.plot(x, y01, color=fs.BLUE, lw=1.6, marker="o", ms=5.2, zorder=4,
+                label="温度 0.1")
+        ax.plot(x, y05, color=fs.ACCENT, lw=1.6, marker="s", ms=4.8, zorder=4,
+                label="温度 0.5")
+        fs.label(ax, 0.02, 1.045, tag, fs=8.8, color=fs.MUTED, ha="left", va="bottom",
+                 transform=ax.transAxes)
+
+    axes[0].set_ylabel("线性探测 Top-1（%）", fontsize=9.2, labelpad=6)
+
+    # 端点读数统一放在曲线外侧，免得压住标记点
+    axes[0].text(0.16, 87.06, "批 256 上低温落后 0.6 个点，批 4096 上反超 1.3 个点",
+                 fontsize=7.6, color=fs.MUTED, ha="left", va="center")
+    axes[0].text(4.12, 89.62, "89.6", fontsize=7.8, color=fs.BLUE, ha="left", va="center")
+    axes[0].text(4.12, 88.28, "88.3", fontsize=7.8, color=fs.ACCENT, ha="left", va="center")
+    axes[1].text(0.12, 91.86, "92.0", fontsize=7.8, color=fs.BLUE, va="top")
+    axes[1].text(0.10, 93.28, "93.2", fontsize=7.8, color=fs.ACCENT, va="bottom")
+    axes[1].text(4.12, 93.02, "93.0", fontsize=7.8, color=fs.BLUE, ha="left", va="center")
+    axes[1].text(4.12, 93.40, "93.3", fontsize=7.8, color=fs.ACCENT, ha="left", va="center")
+
+    # 交叉点：低温随批大小爬升，高温基本走平
+    axes[0].text(1.52, 89.02, "交叉", fontsize=7.6, color=fs.MUTED, ha="left", va="center")
+    axes[0].legend(loc="upper left", ncol=2, fontsize=8.2, handlelength=1.9,
+                   columnspacing=1.2, bbox_to_anchor=(-0.02, 1.02))
+
+    fig.text(0.055, 0.032, "读数按原文附录 B.8 的柱高量出，原图未标数值",
+             fontsize=6.9, color=fs.FAINT, ha="left", va="bottom")
+    return fs.save(fig, "basics", "ch03", "temperature")
+
+
 if __name__ == "__main__":
     fig_three_routes()
     fig_pull_sets()
+    fig_pretext()
+    fig_temperature_simclr()
